@@ -1,0 +1,46 @@
+# ---- Build output ----
+target/
+build/
+dist/
+out/
+
+# ---- Node / frontend ----
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.vite/
+
+# ---- Secrets / local configuration (templates ending in .example ARE committed) ----
+.env
+.env.local
+.env.*.local
+grandvista-local.properties
+
+# ---- Logs ----
+logs/
+*.log
+
+# ---- IDE: Eclipse / Spring Tool Suite ----
+.metadata/
+.recommenders/
+.settings/
+.project
+.classpath
+.factorypath
+.apt_generated/
+.springBeans
+.sts4-cache/
+bin/
+
+# ---- IDE: IntelliJ ----
+.idea/
+*.iml
+
+# ---- IDE: VS Code (keep nothing machine-specific) ----
+.vscode/
+
+# ---- OS metadata ----
+.DS_Store
+Thumbs.db
+desktop.ini

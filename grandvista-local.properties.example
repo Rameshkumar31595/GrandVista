@@ -1,0 +1,40 @@
+# =====================================================================
+# GrandVista Hospitality - LOCAL DEVELOPMENT configuration template
+# =====================================================================
+# 1. Copy this file to "grandvista-local.properties" in the SAME folder
+#    (the SOA-Project root). That copy is git-ignored.
+# 2. Fill in your own values.
+#
+# Every backend service imports this file with
+#   spring.config.import=optional:file:../grandvista-local.properties   (in each application.properties)
+# (path is relative to the service folder, which is the working
+# directory for both "mvn spring-boot:run" and STS "Run As > Spring Boot App").
+#
+# Any key below can ALSO be supplied as an operating-system environment
+# variable, which takes precedence over this file.
+# =====================================================================
+
+# ---- PostgreSQL (one server, four databases) ----
+DB_HOST=localhost
+DB_PORT=5433
+DB_USERNAME=your_postgres_username
+DB_PASSWORD=your_postgres_password
+
+# ---- JWT ----
+# Base64-encoded random key of AT LEAST 32 bytes (256 bits) used for HMAC-SHA256.
+# Generate one, e.g. PowerShell:
+#   $b=[byte[]]::new(48); [Security.Cryptography.RNGCryptoServiceProvider]::new().GetBytes($b); [Convert]::ToBase64String($b)
+# or bash:  openssl rand -base64 48
+JWT_SECRET=replace-with-base64-encoded-random-key
+JWT_EXPIRATION_MINUTES=60
+
+# ---- Service-to-service key (Booking -> Room / Payment internal endpoints) ----
+INTERNAL_API_KEY=replace-with-random-string
+
+# ---- Demonstration administrator (created once by auth-service if missing) ----
+ADMIN_NAME=GrandVista Administrator
+ADMIN_EMAIL=admin@grandvista.com
+ADMIN_PASSWORD=choose-a-strong-password
+
+# ---- CORS origins allowed by the API Gateway (comma separated) ----
+CORS_ALLOWED_ORIGINS=http://localhost:5173
