@@ -1,5 +1,7 @@
 // Small presentational helpers shared by several pages.
 
+import { statusLabel } from '../utils/bookingStatus';
+
 export function Alert({ type = 'error', children, onClose }) {
   if (!children) return null;
   return (
@@ -15,7 +17,7 @@ export function Loading({ text = 'Loading…' }) {
 }
 
 export function StatusBadge({ status }) {
-  return <span className={`badge badge-${String(status).toLowerCase()}`}>{status}</span>;
+  return <span className={`badge badge-${String(status).toLowerCase()}`}>{statusLabel(status)}</span>;
 }
 
 export function FieldError({ errors, name }) {

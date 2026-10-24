@@ -1,0 +1,27 @@
+# Keep images small and - above all - keep secrets and local state OUT of every image build context.
+.git
+.github
+.metadata
+.idea
+.vscode
+.settings
+
+# secrets / local configuration
+grandvista-local.properties
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# build output and dependencies are produced inside the build stages
+**/target
+**/node_modules
+**/dist
+**/.vite
+*.log
+
+# not needed to build the images
+docs
+postman

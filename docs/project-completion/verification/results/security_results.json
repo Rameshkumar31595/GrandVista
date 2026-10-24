@@ -1,0 +1,289 @@
+{
+ "summary": {
+  "passed": 56,
+  "failed": 0,
+  "total": 56
+ },
+ "results": [
+  {
+   "check": "admin can log in",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "registration cannot self-assign ROLE_ADMIN",
+   "pass": true,
+   "detail": "{'id': 8, 'name': 'Eve', 'email': 'esc-1792823780073@example.com', 'role': 'ROLE_USER', 'createdAt': '2026-10-24T06:36:20.155342Z'}"
+  },
+  {
+   "check": "self-registered user cannot list users (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "login failure is 401 with the same message for unknown user and wrong password",
+   "pass": true,
+   "detail": "('Invalid email or password', 'Invalid email or password')"
+  },
+  {
+   "check": "duplicate registration -> 409",
+   "pass": true,
+   "detail": "409"
+  },
+  {
+   "check": "passwords are not returned by the API",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "sanity: a token minted with the real key is accepted (proves the forgery tests are meaningful)",
+   "pass": true,
+   "detail": "200"
+  },
+  {
+   "check": "expired token (correct signature) -> 401",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "token signed with a different key -> 401",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "token with a foreign issuer -> 401",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "unsigned (alg=none) token -> 401",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "tampered signature -> 401",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "payload edited to ROLE_ADMIN with the old signature -> 401",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "no token -> 401",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "USER cannot list all bookings (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "USER cannot list all payments (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "USER cannot pricing rules (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "USER cannot all rooms (admin view) (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "USER cannot inventory summary (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "USER cannot create a room (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "ADMIN cannot create a booking as a guest (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "another guest cannot read someone else's booking (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "another guest cannot pay someone else's booking (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "another guest cannot cancel someone else's booking (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "payments of a booking the guest does not own are refused or empty",
+   "pass": true,
+   "detail": "200"
+  },
+  {
+   "check": "booking still PENDING and owned by A after the attacks",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "ADMIN can read any booking",
+   "pass": true,
+   "detail": "200"
+  },
+  {
+   "check": "unknown booking -> 404",
+   "pass": true,
+   "detail": "404"
+  },
+  {
+   "check": "gateway blocks /internal/holds",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "gateway blocks /eureka/apps",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "gateway blocks /actuator/env",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "gateway blocks /actuator/heapdump",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "direct room-service internal call with a wrong key -> 403",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "direct room-service internal call without credentials -> 403/401",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "actuator/env not exposed on :8081",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "actuator/env not exposed on :8082",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "actuator/env not exposed on :8083",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "actuator/env not exposed on :8084",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "booking validation: past check-in -> 400",
+   "pass": true,
+   "detail": "(400, {'timestamp': '2026-10-24T06:36:21.412579600Z', 'status': 400, 'error': 'Bad Request', 'message': 'Request validation failed', 'path': '/bookings', 'validationErrors': {'checkIn': 'Check-in date"
+  },
+  {
+   "check": "booking validation: check-out before check-in -> 400",
+   "pass": true,
+   "detail": "(400, {'timestamp': '2026-10-24T06:36:21.436695500Z', 'status': 400, 'error': 'Bad Request', 'message': 'Check-out date must be after check-in date', 'path': '/bookings'})"
+  },
+  {
+   "check": "booking validation: zero guests -> 400",
+   "pass": true,
+   "detail": "(400, {'timestamp': '2026-10-24T06:36:21.459077800Z', 'status': 400, 'error': 'Bad Request', 'message': 'Request validation failed', 'path': '/bookings', 'validationErrors': {'numberOfGuests': 'At lea"
+  },
+  {
+   "check": "booking validation: too many guests -> 400",
+   "pass": true,
+   "detail": "(400, {'timestamp': '2026-10-24T06:36:21.478448400Z', 'status': 400, 'error': 'Bad Request', 'message': 'Request validation failed', 'path': '/bookings', 'validationErrors': {'numberOfGuests': 'At mos"
+  },
+  {
+   "check": "booking validation: stay longer than 30 nights -> 400",
+   "pass": true,
+   "detail": "(400, {'timestamp': '2026-10-24T06:36:21.499765100Z', 'status': 400, 'error': 'Bad Request', 'message': 'A single booking cannot exceed 30 nights', 'path': '/bookings'})"
+  },
+  {
+   "check": "booking validation: unknown room -> 404",
+   "pass": true,
+   "detail": "(404, {'timestamp': '2026-10-24T06:36:21.534263700Z', 'status': 404, 'error': 'Not Found', 'message': 'Room 987654 not found', 'path': '/bookings'})"
+  },
+  {
+   "check": "booking validation: missing fields -> 400",
+   "pass": true,
+   "detail": "(400, {'timestamp': '2026-10-24T06:36:21.573976500Z', 'status': 400, 'error': 'Bad Request', 'message': 'Request validation failed', 'path': '/bookings', 'validationErrors': {'checkOut': 'Check-out da"
+  },
+  {
+   "check": "malformed JSON types -> 400 (no 500)",
+   "pass": true,
+   "detail": "400"
+  },
+  {
+   "check": "SQL-ish / malformed search parameters never produce a 500",
+   "pass": true,
+   "detail": "(400, \"{'timestamp': '2026-10-24T06:36:21.613439200Z', 'status': 400, 'error': 'Bad Request', 'message': 'M\")"
+  },
+  {
+   "check": "injection string in city returns an empty/normal result",
+   "pass": true,
+   "detail": "(200, '[]')"
+  },
+  {
+   "check": "registration validates name/email/password -> 400 with field errors",
+   "pass": true,
+   "detail": "{'timestamp': '2026-10-24T06:36:21.655166700Z', 'status': 400, 'error': 'Bad Request', 'message': 'Request validation failed', 'path': '/auth/register', 'validationErrors': {'password': 'Password must"
+  },
+  {
+   "check": "empty login body -> 400",
+   "pass": true,
+   "detail": "400"
+  },
+  {
+   "check": "404 body has no stack trace / class names",
+   "pass": true,
+   "detail": "{\"timestamp\": \"2026-10-24T06:36:21.695197100Z\", \"status\": 404, \"error\": \"Not Found\", \"message\": \"Room 987654 not found\", \"path\": \"/rooms/987654\"}"
+  },
+  {
+   "check": "unknown gateway route is denied cleanly (403/404)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "routed responses carry X-Request-Id for tracing",
+   "pass": true,
+   "detail": "['transfer-encoding', 'Vary', 'X-Request-Id', 'X-Instance-Id', 'X-Content-Type-Options', 'X-XSS-Protection', 'Cache-Control', 'Pragma']"
+  },
+  {
+   "check": "CORS preflight from an unknown origin is refused",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "CORS preflight from the React dev server is allowed without credentials",
+   "pass": true,
+   "detail": "{'vary': 'Origin', 'access-control-allow-origin': 'http://localhost:5173', 'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS', 'access-control-allow-headers': 'authorization, content-"
+  },
+  {
+   "check": "no secrets, passwords or JWTs in any service log",
+   "pass": true,
+   "detail": "[]"
+  }
+ ]
+}

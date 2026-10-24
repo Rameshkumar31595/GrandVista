@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { bookingApi } from '../api/endpoints';
 import { Alert, Loading, StatusBadge, formatDate, formatMoney } from '../components/common';
+import { isInFlight, statusLabel } from '../utils/bookingStatus';
+import { usePolling } from '../utils/usePolling';
 
 const METHODS = [
   { value: 'UPI', label: 'UPI' },
@@ -34,6 +36,9 @@ export default function PaymentPage() {
   useEffect(() => {
     bookingApi.get(bookingId).then(setBooking).catch((err) => setError(err.message));
   }, [bookingId]);
+
+  // A payment started earlier (or in another tab) may still be settling: follow it instead of offering "Pay" again.
+  usePolling(() => bookingApi.get(bookingId).then(setBooking).catch(() => {}), isInFlight(booking?.bookingStatus));
 
   const pay = async () => {
     setError(null);
@@ -79,7 +84,7 @@ export default function PaymentPage() {
 
         {booking.bookingStatus !== 'PENDING' ? (
           <>
-            <Alert type="info">This booking is {booking.bookingStatus}: {booking.statusReason}</Alert>
+            <Alert type="info">This booking is {statusLabel(booking.bookingStatus)}: {booking.statusReason}</Alert>
             <Link className="btn btn-outline" to="/my-bookings">Go to my bookings</Link>
           </>
         ) : (

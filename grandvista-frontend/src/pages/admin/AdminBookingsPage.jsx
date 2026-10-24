@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { bookingApi } from '../../api/endpoints';
 import { Alert, Loading, StatusBadge, formatDate, formatMoney } from '../../components/common';
+import { BOOKING_STATUSES, canAdminCancel, isInFlight, statusLabel } from '../../utils/bookingStatus';
+import { usePolling } from '../../utils/usePolling';
 
 export default function AdminBookingsPage() {
   const [status, setStatus] = useState('');
@@ -12,6 +14,7 @@ export default function AdminBookingsPage() {
     bookingApi.all(status || undefined).then(setBookings).catch((err) => setError(err.message));
   }, [status]);
   useEffect(() => { load(); }, [load]);
+  usePolling(load, Boolean(bookings?.some((booking) => isInFlight(booking.bookingStatus))));
 
   const cancel = async (booking) => {
     if (!window.confirm(`Cancel booking #${booking.bookingId} for user ${booking.userId}?`)) return;
@@ -32,7 +35,8 @@ export default function AdminBookingsPage() {
       <Alert>{error}</Alert>
       <label className="inline-filter">Status
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">All</option><option>PENDING</option><option>CONFIRMED</option><option>CANCELLED</option>
+          <option value="">All</option>
+          {BOOKING_STATUSES.map((value) => <option key={value} value={value}>{statusLabel(value)}</option>)}
         </select>
       </label>
 
@@ -51,7 +55,7 @@ export default function AdminBookingsPage() {
                   <td>{formatMoney(booking.totalAmount)}</td>
                   <td><StatusBadge status={booking.bookingStatus} /><br /><small className="muted">{booking.statusReason}</small></td>
                   <td><code>{booking.paymentReference || '—'}</code></td>
-                  <td>{booking.bookingStatus !== 'CANCELLED' && (
+                  <td>{canAdminCancel(booking) && (
                     <button className="btn btn-danger btn-sm" type="button" onClick={() => cancel(booking)}>Cancel</button>
                   )}</td>
                 </tr>

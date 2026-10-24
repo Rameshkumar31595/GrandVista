@@ -57,8 +57,9 @@ All Spring Boot configuration lives in `src/main/resources/application.propertie
 | Persistence | Spring Data JPA / Hibernate 7, PostgreSQL 18 |
 | Inter-service calls | Spring `RestClient` + Spring Cloud LoadBalancer interceptor (`DeferringLoadBalancerInterceptor`) |
 | API docs | springdoc-openapi 3.0.3 (Swagger UI) |
-| Tests | JUnit 5, Mockito, MockMvc, WebTestClient, MockRestServiceServer, H2 (in-memory) |
+| Tests | JUnit 5, Mockito, MockMvc, WebTestClient, MockRestServiceServer, H2 (in-memory), optional real-PostgreSQL concurrency test; frontend: Vitest 5 + Testing Library |
 | Frontend | React 19.3, React Router 7.18, Vite 8.3 |
+| Deployment | native (Maven + npm) or Docker Compose (`docker-compose.yml`, see `docs/project-completion/DEPLOYMENT_GUIDE.md`) |
 
 Why these versions: the Spring Cloud 2025.1.3 BOM is built against Spring Boot 4.0.8, and Boot 4.0 supports Java
 17–25. Spring Boot 4.1 is out, but no stable Spring Cloud release supports it yet, so this project stays on 4.0.x.
@@ -80,8 +81,12 @@ SOA-Project/
 │   ├── architecture/       Mermaid diagrams
 │   ├── database/           pgAdmin guide, create-databases SQL, schema reference, demo queries
 │   ├── api/                endpoint reference and routing
-│   └── review-1/           01 … 10 rubric documents
+│   ├── review-1/           01 … 10 rubric documents
+│   └── project-completion/ context, changelog, test evidence, deployment guide, handover report
 ├── postman/                collection + environment
+├── docker/                 Dockerfiles (services, frontend), nginx config, PostgreSQL init script
+├── docker-compose.yml      whole stack in containers (see §14)
+├── .env.example            template for docker compose (copy → .env)
 ├── grandvista-local.properties.example   configuration template (copy → grandvista-local.properties)
 ├── .gitignore
 └── README.md
@@ -166,20 +171,30 @@ Once dependencies are in `~/.m2`, no further downloads are needed.
 
 ```bash
 cd auth-service && mvn test          # repeat for each backend folder
+cd grandvista-frontend && npm install && npm test && npm run build
 ```
 
-Tests need **no running PostgreSQL** (they use H2 or mocks):
+Backend tests need **no running PostgreSQL** (they use H2 or mocks):
 
 | Service | Tests | Highlights |
 |---|---|---|
 | eureka-server | 1 | context starts |
 | auth-service | 18 | JWT expiry/tampering/wrong key, BCrypt, role injection ignored, 401/403 |
-| room-service | 40 | overlap rule table, pricing maths, repository queries, **8-thread double-booking test** |
-| booking-service | 21 | success, payment failure, refund compensation, expiry, ownership, client JWT propagation |
-| payment-service | 13 | success/failure/limit, duplicate payment, refunds |
+| room-service | 62 (+4 opt-in) | overlap rule table, pricing rules (season boundaries, precedence, rounding, occupancy), repository queries, 8-thread double-booking test, internal-key filter incl. encoded-path bypass |
+| booking-service | 40 | saga with persisted recovery states: success, payment failure, payment timeout / lost response, refund-before-release, refund failure, recovery job, expiry, ownership, client JWT propagation |
+| payment-service | 33 | idempotent payment, race on the unique "one charge per booking" constraint, refunds, outcome lookup, internal-key filter |
 | api-gateway | 8 | real gateway: 401/403, internal paths blocked, CORS |
+| grandvista-frontend | 100 | API client, session handling, route guards, login/register, room search and booking flow, payment result states, My bookings, admin bookings/dashboard |
 
-Frontend: `cd grandvista-frontend && npm install && npm run build`.
+The **4 opt-in tests** (`ConcurrentHoldPostgresIntegrationTest`) run the double-booking proof against a real PostgreSQL
+server. They are skipped unless you supply a *disposable* database whose name ends in `_test_db` (the test recreates its
+schema, so it refuses to run against anything else):
+
+```powershell
+$env:GV_TEST_PG_URL="jdbc:postgresql://localhost:5433/grandvista_room_test_db"
+$env:GV_TEST_PG_USER="..."; $env:GV_TEST_PG_PASSWORD="..."
+cd room-service; mvn test -Dtest=ConcurrentHoldPostgresIntegrationTest
+```
 
 ## 8. Startup order
 
@@ -251,6 +266,11 @@ ROOM-SERVICE instances. Repeat `GET http://localhost:8080/api/rooms`: the respon
 alternates between `room-service:8082` and `room-service:8085`. Booking Service calls are balanced the same way
 through its load-balanced `RestClient`. Details: [`docs/review-1/05-service-discovery.md`](docs/review-1/05-service-discovery.md).
 
+**Payment outage / recovery:** stop Payment Service, press *Pay* → the UI shows "Verifying your payment" (HTTP 202, booking
+`PAYMENT_IN_PROGRESS`, no Pay/Cancel offered). Start it again → within about a minute the recovery job settles the booking
+(back to `PENDING` if no payment was recorded, `CONFIRMED` if the charge had gone through). Cancelling a confirmed booking
+while Payment Service is down leaves it `CANCELLATION_PENDING` with the room still reserved until the refund succeeds.
+
 **Collision prevention:** book a room for day 30→33, then try the same room for day 32→35 → **409**. Booking day
 33→35 is allowed, because the check-out day is free. Proof under concurrency:
 `room-service` → `ConcurrentHoldIntegrationTest`.
@@ -292,7 +312,19 @@ Each backend folder is a normal, independent Maven Spring Boot project (`pom.xml
 
 The frontend is not an STS project. Run it from a terminal with `npm run dev`.
 
-## 14. Documentation index
+## 14. Docker Compose
+
+```bash
+cp .env.example .env     # fill in DB_PASSWORD, JWT_SECRET, INTERNAL_API_KEY, ADMIN_PASSWORD
+docker compose up --build -d
+```
+
+UI http://localhost:5173 · gateway http://localhost:8080 · Eureka http://localhost:9000. Only those three ports are published;
+the business services and a fresh PostgreSQL container stay on the internal network. These files have been validated
+statically but **not yet run** (no Docker on the machine they were written on) – see
+`docs/project-completion/DEPLOYMENT_GUIDE.md`.
+
+## 15. Documentation index
 
 | Rubric | Documents |
 |---|---|
@@ -301,10 +333,12 @@ The frontend is not an STS project. Run it from a terminal with `npm run dev`.
 | JWT authentication | `docs/review-1/06` |
 | API Gateway | `docs/review-1/07`, `docs/api/api-reference.md` |
 | Supporting | `08-database-design`, `09-booking-workflow`, `10-review-demonstration-guide`, `docs/architecture`, `docs/database` |
+| Completion work (context, changelog, test evidence, deployment, handover report) | `docs/project-completion/` |
 
-## 15. Known limitations
+## 16. Known limitations
 
 HS256 shared secret (production: RS256 + JWKS); no refresh tokens or revocation; JWT kept in `localStorage`;
-synchronous saga without an outbox (a crash between payment and confirmation needs reconciliation); no rate
-limiting or circuit breakers; `ddl-auto=update` instead of migrations; HTTP without TLS on localhost. Details and
+a synchronous saga: interrupted payments and cancellations are persisted as `PAYMENT_IN_PROGRESS` / `CANCELLATION_PENDING` and
+finished by a recovery job, but there is no transactional outbox and a late-finishing payment (> 60 s) is only covered
+by the documented residual window in `docs/review-1/09-booking-workflow.md`; no rate limiting or circuit breakers; `ddl-auto=update` instead of migrations; HTTP without TLS on localhost. Details and
 production alternatives are in `docs/review-1/03-non-functional-requirements.md` and `09-booking-workflow.md`.

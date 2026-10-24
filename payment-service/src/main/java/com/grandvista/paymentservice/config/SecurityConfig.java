@@ -36,7 +36,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/info", "/error").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/internal/**").authenticated()
+                        .requestMatchers("/internal/**").access(InternalApiKeyFilter.requireVerifiedKey())
                         .requestMatchers(HttpMethod.GET, "/payments").hasRole("ADMIN")
                         .requestMatchers("/payments/**").hasAnyRole("USER", "ADMIN")
                         .anyRequest().authenticated())

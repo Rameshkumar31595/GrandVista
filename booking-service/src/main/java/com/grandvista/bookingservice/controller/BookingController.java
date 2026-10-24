@@ -6,11 +6,13 @@ import com.grandvista.bookingservice.dto.PayBookingRequest;
 import com.grandvista.bookingservice.dto.PaymentOutcomeResponse;
 import com.grandvista.bookingservice.entity.BookingStatus;
 import com.grandvista.bookingservice.service.BookingService;
+import com.grandvista.bookingservice.service.impl.BookingServiceImpl;
 import com.grandvista.bookingservice.util.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,10 +47,14 @@ public class BookingController {
 
     @PostMapping("/{bookingId}/pay")
     @Operation(summary = "Pay for a PENDING booking: Booking -> Payment -> Room confirmation")
-    public PaymentOutcomeResponse payForBooking(@PathVariable Long bookingId,
-                                                @Valid @RequestBody PayBookingRequest request,
-                                                @AuthenticationPrincipal Jwt jwt) {
-        return bookingService.payForBooking(bookingId, request, AuthenticatedUser.from(jwt));
+    public ResponseEntity<PaymentOutcomeResponse> payForBooking(@PathVariable Long bookingId,
+                                                                @Valid @RequestBody PayBookingRequest request,
+                                                                @AuthenticationPrincipal Jwt jwt) {
+        PaymentOutcomeResponse outcome = bookingService.payForBooking(bookingId, request, AuthenticatedUser.from(jwt));
+        // 202: the payment outcome is not known yet; the booking stays PAYMENT_IN_PROGRESS until it is resolved.
+        HttpStatus status = BookingServiceImpl.PAYMENT_STATUS_UNKNOWN.equals(outcome.paymentStatus())
+                ? HttpStatus.ACCEPTED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(outcome);
     }
 
     @PostMapping("/{bookingId}/cancel")

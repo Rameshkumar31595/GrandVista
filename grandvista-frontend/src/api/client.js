@@ -11,6 +11,8 @@ export class ApiError extends Error {
   }
 }
 
+const PUBLIC_AUTH_PATHS = new Set(['/auth/login', '/auth/register']);
+
 let unauthorizedHandler = null;
 
 /** Registered by AuthContext: called when an authenticated request is rejected with 401 (expired/invalid JWT). */
@@ -30,7 +32,10 @@ export async function apiRequest(path, { method = 'GET', body, query } = {}) {
     }
   });
 
-  const token = tokenStorage.getToken();
+  // Login and registration are public: never attach a stored token to them. Otherwise a failed login made while an
+  // old session still sits in storage (second tab, mistyped password) would come back as a 401 that is mistaken for
+  // "your session expired" and would log the user out everywhere.
+  const token = PUBLIC_AUTH_PATHS.has(path) ? null : tokenStorage.getToken();
   const headers = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;

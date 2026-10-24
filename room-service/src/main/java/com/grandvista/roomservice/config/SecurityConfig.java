@@ -42,7 +42,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/actuator/info", "/error").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // ---- service-to-service (JWT + internal API key) ----
-                        .requestMatchers("/internal/**").authenticated()
+                        .requestMatchers("/internal/**").access(InternalApiKeyFilter.requireVerifiedKey())
                         // ---- admin-only read endpoints (must be declared before the public GET rules) ----
                         .requestMatchers(HttpMethod.GET, "/rooms/all", "/rooms/inventory-summary", "/rooms/*/holds")
                         .hasRole("ADMIN")

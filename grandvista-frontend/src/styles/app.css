@@ -137,7 +137,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(201, 162, 39
 .alert-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: inherit; }
 .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em; }
 .badge-confirmed, .badge-success, .badge-active { background: #e1f4e8; color: var(--success); }
-.badge-pending, .badge-held, .badge-maintenance { background: #fdf1d8; color: var(--warning); }
+.badge-pending, .badge-held, .badge-maintenance, .badge-payment_in_progress, .badge-cancellation_pending, .badge-unknown { background: #fdf1d8; color: var(--warning); }
 .badge-cancelled, .badge-failed, .badge-released, .badge-expired, .badge-inactive { background: #fbe4e1; color: var(--danger); }
 .badge-refunded, .badge-not_attempted { background: #e5ebf7; color: var(--navy-light); }
 .loading { display: flex; align-items: center; gap: 0.6rem; color: var(--muted); padding: 1.5rem 0; }
@@ -162,6 +162,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(201, 162, 39
 .result-icon { width: 64px; height: 64px; margin: 0 auto 0.8rem; border-radius: 50%; display: grid; place-items: center; font-size: 2rem; color: #fff; }
 .result-card.success .result-icon { background: var(--success); }
 .result-card.failure .result-icon { background: var(--danger); }
+.result-card.processing .result-icon { background: var(--warning); }
 .booking-list { display: grid; gap: 0.9rem; }
 .booking-item { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .booking-item p { margin: 0.25rem 0; }

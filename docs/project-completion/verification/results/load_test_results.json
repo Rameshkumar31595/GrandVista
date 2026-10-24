@@ -1,0 +1,141 @@
+{
+ "config": {
+  "concurrent_users": 40,
+  "read_seconds": 15,
+  "booking_seconds": 25
+ },
+ "load_balancing": {
+  "room_service_instances_seen": {
+   "room-service:8085": 30,
+   "room-service:8082": 30
+  }
+ },
+ "read_load": {
+  "duration_s": 15.0,
+  "total_requests": 5914,
+  "throughput_rps": 393.0,
+  "search": {
+   "requests": 2921,
+   "p50_ms": 89.9,
+   "p95_ms": 181.6,
+   "p99_ms": 250.4,
+   "max_ms": 1008.0,
+   "statuses": {
+    "200": 2921
+   }
+  },
+  "availability": {
+   "requests": 1768,
+   "p50_ms": 86.9,
+   "p95_ms": 186.3,
+   "p99_ms": 249.6,
+   "max_ms": 1010.4,
+   "statuses": {
+    "200": 1768
+   }
+  },
+  "price_quote": {
+   "requests": 1225,
+   "p50_ms": 90.0,
+   "p95_ms": 182.1,
+   "p99_ms": 229.9,
+   "max_ms": 996.5,
+   "statuses": {
+    "200": 1225
+   }
+  }
+ },
+ "hot_spot": {
+  "simultaneous_requests": 40,
+  "status_counts": {
+   "201": 1,
+   "409": 39
+  },
+  "exactly_one_winner": true
+ },
+ "promotional_traffic": {
+  "duration_s": 9.6,
+  "total_requests": 1569,
+  "throughput_rps": 164.2,
+  "workflow_outcomes": {
+   "paid": 412,
+   "declined": 68,
+   "cancelled": 129
+  },
+  "create_booking": {
+   "requests": 480,
+   "p50_ms": 239.7,
+   "p95_ms": 437.4,
+   "p99_ms": 641.7,
+   "max_ms": 714.2,
+   "statuses": {
+    "201": 480
+   }
+  },
+  "pay": {
+   "requests": 480,
+   "p50_ms": 301.5,
+   "p95_ms": 609.4,
+   "p99_ms": 749.2,
+   "max_ms": 807.3,
+   "statuses": {
+    "200": 480
+   }
+  },
+  "cancel": {
+   "requests": 129,
+   "p50_ms": 234.4,
+   "p95_ms": 474.6,
+   "p99_ms": 646.5,
+   "max_ms": 658.7,
+   "statuses": {
+    "200": 129
+   }
+  },
+  "my_bookings": {
+   "requests": 480,
+   "p50_ms": 84.4,
+   "p95_ms": 195.5,
+   "p99_ms": 248.9,
+   "max_ms": 330.3,
+   "statuses": {
+    "200": 480
+   }
+  }
+ },
+ "error_rate": {
+  "total_requests": 7563,
+  "unexpected_5xx_or_timeouts": {},
+  "unexpected_count": 0
+ },
+ "consistency": {
+  "overlapping_blocking_holds": [
+   "0"
+  ],
+  "bookings_with_more_than_one_successful_charge": [
+   "0"
+  ],
+  "bookings_by_status": [
+   "CANCELLED=201",
+   "CONFIRMED=287",
+   "PENDING=4"
+  ],
+  "confirmed_bookings_without_payment": [
+   "0"
+  ],
+  "bookings_stuck_in_intermediate_state": [
+   "0"
+  ],
+  "confirmed_bookings_without_a_SUCCESS_payment": 0,
+  "SUCCESS_payments_whose_booking_is_not_CONFIRMED": 0,
+  "cancelled_bookings_holding_money_(paid, neither refunded nor failed)": 0,
+  "confirmed_holds_vs_confirmed_bookings": {
+   "confirmed_holds": [
+    "287"
+   ],
+   "confirmed_bookings": [
+    "287"
+   ]
+  }
+ }
+}

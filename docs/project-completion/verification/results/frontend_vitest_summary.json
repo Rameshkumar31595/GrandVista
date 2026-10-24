@@ -1,0 +1,83 @@
+{
+ "numTotalTests": 100,
+ "numPassedTests": 100,
+ "numFailedTests": 0,
+ "numPendingTests": 0,
+ "files": [
+  {
+   "file": "src/App.test.jsx",
+   "passed": 7,
+   "total": 7
+  },
+  {
+   "file": "src/api/client.test.js",
+   "passed": 12,
+   "total": 12
+  },
+  {
+   "file": "src/api/tokenStorage.test.js",
+   "passed": 4,
+   "total": 4
+  },
+  {
+   "file": "src/context/AuthContext.test.jsx",
+   "passed": 8,
+   "total": 8
+  },
+  {
+   "file": "src/components/ProtectedRoute.test.jsx",
+   "passed": 4,
+   "total": 4
+  },
+  {
+   "file": "src/pages/LoginPage.test.jsx",
+   "passed": 5,
+   "total": 5
+  },
+  {
+   "file": "src/pages/MyBookingsPage.test.jsx",
+   "passed": 9,
+   "total": 9
+  },
+  {
+   "file": "src/pages/PaymentPage.test.jsx",
+   "passed": 10,
+   "total": 10
+  },
+  {
+   "file": "src/pages/PaymentResultPage.test.jsx",
+   "passed": 8,
+   "total": 8
+  },
+  {
+   "file": "src/pages/RegisterPage.test.jsx",
+   "passed": 4,
+   "total": 4
+  },
+  {
+   "file": "src/pages/RoomDetailsPage.test.jsx",
+   "passed": 9,
+   "total": 9
+  },
+  {
+   "file": "src/pages/RoomsPage.test.jsx",
+   "passed": 7,
+   "total": 7
+  },
+  {
+   "file": "src/utils/bookingStatus.test.js",
+   "passed": 6,
+   "total": 6
+  },
+  {
+   "file": "src/pages/admin/AdminBookingsPage.test.jsx",
+   "passed": 5,
+   "total": 5
+  },
+  {
+   "file": "src/pages/admin/AdminDashboardPage.test.jsx",
+   "passed": 2,
+   "total": 2
+  }
+ ]
+}

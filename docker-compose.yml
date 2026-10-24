@@ -1,0 +1,196 @@
+# GrandVista Hospitality - complete stack in containers.
+#
+#   1. copy .env.example to .env and fill in the secrets (compose refuses to start while they are empty)
+#   2. docker compose up --build -d
+#   3. open http://localhost:5173  (UI)   http://localhost:8080  (API gateway)   http://localhost:9000  (Eureka)
+#
+# Only the gateway, the UI and the Eureka dashboard are published to the host. The business services
+# (auth/room/booking/payment) and PostgreSQL are reachable only on the internal compose network, so their
+# /internal/** endpoints can never be called from outside. PostgreSQL data lives in the named volume
+# "pgdata" - it is NOT the PostgreSQL installed on your machine and never touches its data directory.
+#
+# This file has been statically validated but not executed in the environment it was written in
+# (no Docker available) - see docs/project-completion/DEPLOYMENT_GUIDE.md.
+
+name: grandvista
+
+x-java-service: &java-service
+  restart: unless-stopped
+  networks: [grandvista]
+
+x-healthcheck: &healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 60s
+
+x-service-env: &service-env
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_USERNAME: ${DB_USERNAME:?set DB_USERNAME in .env}
+  DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (base64, at least 32 bytes)}
+  INTERNAL_API_KEY: ${INTERNAL_API_KEY:?set INTERNAL_API_KEY in .env}
+  EUREKA_URL: http://eureka-server:9000/eureka/
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:?set DB_USERNAME in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./docker/postgres/init-databases.sh:/docker-entrypoint-initdb.d/10-init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [grandvista]
+
+  eureka-server:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/service.Dockerfile
+      args: { SERVICE_DIR: eureka-server }
+    image: grandvista/eureka-server
+    ports: ["9000:9000"]
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "curl -fs http://localhost:9000/actuator/health | grep -q UP"]
+
+  auth-service:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/service.Dockerfile
+      args: { SERVICE_DIR: auth-service }
+    image: grandvista/auth-service
+    environment:
+      <<: *service-env
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-60}
+      ADMIN_NAME: ${ADMIN_NAME:-GrandVista Administrator}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@grandvista.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env (at least 8 characters)}
+    depends_on:
+      postgres: { condition: service_healthy }
+      eureka-server: { condition: service_healthy }
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "curl -fs http://localhost:8081/actuator/health | grep -q UP"]
+
+  room-service:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/service.Dockerfile
+      args: { SERVICE_DIR: room-service }
+    image: grandvista/room-service
+    environment:
+      <<: *service-env
+      HOLD_MINUTES: ${HOLD_MINUTES:-15}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+    depends_on:
+      postgres: { condition: service_healthy }
+      eureka-server: { condition: service_healthy }
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "curl -fs http://localhost:8082/actuator/health | grep -q UP"]
+
+  # Optional second Room Service for the load-balancing demo:  docker compose --profile lb-demo up -d room-service-2
+  # (a distinct port gives it a distinct Eureka instance id, room-service:8085; plain "--scale" would register both
+  # replicas as room-service:8082 and they would overwrite each other)
+  room-service-2:
+    <<: *java-service
+    profiles: ["lb-demo"]
+    image: grandvista/room-service
+    environment:
+      <<: *service-env
+      ROOM_SERVICE_PORT: "8085"
+      HOLD_MINUTES: ${HOLD_MINUTES:-15}
+      SEED_DEMO_DATA: "false"
+    depends_on:
+      room-service: { condition: service_healthy }
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "curl -fs http://localhost:8085/actuator/health | grep -q UP"]
+
+  payment-service:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/service.Dockerfile
+      args: { SERVICE_DIR: payment-service }
+    image: grandvista/payment-service
+    environment:
+      <<: *service-env
+      PAYMENT_MAX_AMOUNT: ${PAYMENT_MAX_AMOUNT:-500000}
+    depends_on:
+      postgres: { condition: service_healthy }
+      eureka-server: { condition: service_healthy }
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "curl -fs http://localhost:8084/actuator/health | grep -q UP"]
+
+  booking-service:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/service.Dockerfile
+      args: { SERVICE_DIR: booking-service }
+    image: grandvista/booking-service
+    environment:
+      <<: *service-env
+    depends_on:
+      postgres: { condition: service_healthy }
+      eureka-server: { condition: service_healthy }
+      room-service: { condition: service_healthy }
+      payment-service: { condition: service_healthy }
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "curl -fs http://localhost:8083/actuator/health | grep -q UP"]
+
+  api-gateway:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: docker/service.Dockerfile
+      args: { SERVICE_DIR: api-gateway }
+    image: grandvista/api-gateway
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (base64, at least 32 bytes)}
+      EUREKA_URL: http://eureka-server:9000/eureka/
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+    ports: ["8080:8080"]
+    depends_on:
+      eureka-server: { condition: service_healthy }
+      auth-service: { condition: service_healthy }
+      room-service: { condition: service_healthy }
+      booking-service: { condition: service_healthy }
+      payment-service: { condition: service_healthy }
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/actuator/health | grep -q UP"]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        # the URL the BROWSER uses to reach the gateway (baked into the JavaScript at build time)
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080/api}
+    image: grandvista/frontend
+    restart: unless-stopped
+    ports: ["5173:8080"]
+    depends_on:
+      api-gateway: { condition: service_healthy }
+    networks: [grandvista]
+
+networks:
+  grandvista:
+
+volumes:
+  pgdata:

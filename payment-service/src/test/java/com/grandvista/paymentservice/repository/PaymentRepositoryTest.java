@@ -18,6 +18,8 @@ class PaymentRepositoryTest {
 
     @Autowired
     private PaymentRepository paymentRepository;
+    @Autowired
+    private jakarta.persistence.EntityManager entityManager;
 
     @Test
     void successfulPaymentLookupIgnoresFailedAttempts() {
@@ -35,6 +37,37 @@ class PaymentRepositoryTest {
 
         assertThatThrownBy(() -> paymentRepository.saveAndFlush(payment(2L, PaymentStatus.SUCCESS, "GV-PAY-SAME")))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void databaseRejectsASecondSuccessfulChargeForTheSameBooking() {
+        paymentRepository.saveAndFlush(payment(42L, PaymentStatus.SUCCESS, "GV-PAY-A"));
+
+        assertThatThrownBy(() -> paymentRepository.saveAndFlush(payment(42L, PaymentStatus.SUCCESS, "GV-PAY-B")))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void failedAttemptsNeverBlockEachOtherOrALaterSuccess() {
+        paymentRepository.saveAndFlush(payment(42L, PaymentStatus.FAILED, "GV-PAY-1"));
+        paymentRepository.saveAndFlush(payment(42L, PaymentStatus.FAILED, "GV-PAY-2"));
+        paymentRepository.saveAndFlush(payment(42L, PaymentStatus.SUCCESS, "GV-PAY-3"));
+
+        assertThat(paymentRepository.findByBookingIdOrderByCreatedAtDesc(42L)).hasSize(3);
+    }
+
+    @Test
+    void refundedPaymentStillOccupiesTheOneChargePerBookingSlot() {
+        Payment charged = paymentRepository.saveAndFlush(payment(42L, PaymentStatus.SUCCESS, "GV-PAY-A"));
+        charged.markRefunded(java.time.Instant.parse("2026-09-14T06:00:00Z"));
+        paymentRepository.saveAndFlush(charged);
+
+        assertThatThrownBy(() -> paymentRepository.saveAndFlush(payment(42L, PaymentStatus.SUCCESS, "GV-PAY-B")))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        entityManager.clear(); // drop the rejected insert, otherwise the next query would try to flush it again
+        assertThat(paymentRepository.findFirstByBookingIdAndStatusInOrderByCreatedAtDesc(42L,
+                java.util.Set.of(PaymentStatus.SUCCESS, PaymentStatus.REFUNDED))).get()
+                .extracting(Payment::getStatus).isEqualTo(PaymentStatus.REFUNDED);
     }
 
     private static Payment payment(Long bookingId, PaymentStatus status, String reference) {

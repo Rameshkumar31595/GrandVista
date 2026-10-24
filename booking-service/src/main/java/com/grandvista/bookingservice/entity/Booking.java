@@ -142,6 +142,33 @@ public class Booking {
         this.holdExpiresAt = null;
     }
 
+    /** The guest pressed "Pay": from now on only the payment outcome may move the booking forward. */
+    public void beginPayment() {
+        this.status = BookingStatus.PAYMENT_IN_PROGRESS;
+        this.statusReason = "Payment in progress";
+    }
+
+    /** The Payment Service definitively rejected the request without charging: the guest may try again. */
+    public void revertToPending() {
+        this.status = BookingStatus.PENDING;
+        this.statusReason = "Awaiting payment";
+    }
+
+    /** Cancellation decided, but the refund and/or room release still have to be completed. */
+    public void requireCancellation(String reason) {
+        this.status = BookingStatus.CANCELLATION_PENDING;
+        this.statusReason = reason;
+    }
+
+    /** Refund (if any) and room release are done. */
+    public void completeCancellation() {
+        this.status = BookingStatus.CANCELLED;
+        if (paymentId != null) {
+            this.statusReason = statusReason + " - payment refunded";
+        }
+        this.holdExpiresAt = null;
+    }
+
     public void recordPayment(Long paymentId, String paymentReference) {
         this.paymentId = paymentId;
         this.paymentReference = paymentReference;

@@ -124,7 +124,7 @@ create table bookings (
     version bigint not null,                      -- optimistic locking
     room_number varchar(20) not null,             -- snapshot for display
     room_type varchar(20) not null,               -- snapshot for display
-    status varchar(20) not null check ((status in ('PENDING','CONFIRMED','CANCELLED'))),
+    status varchar(20) not null check ((status in ('PENDING','PAYMENT_IN_PROGRESS','CONFIRMED','CANCELLATION_PENDING','CANCELLED'))),
     payment_reference varchar(40),
     hotel_name varchar(120) not null,             -- snapshot for display
     status_reason varchar(255),
@@ -152,8 +152,10 @@ create table payments (
     status varchar(20) not null check ((status in ('SUCCESS','FAILED','REFUNDED'))),
     transaction_reference varchar(40) not null,
     failure_reason varchar(255),
+    success_booking_id bigint,                    -- = booking_id once the payment SUCCEEDED (stays after a refund); NULL otherwise
     primary key (id),
-    constraint uk_payments_transaction_reference unique (transaction_reference)
+    constraint uk_payments_transaction_reference unique (transaction_reference),
+    constraint uk_payments_success_booking unique (success_booking_id)   -- at most ONE successful charge per booking (NULLs never collide)
 );
 
 create index idx_payments_booking on payments (booking_id);

@@ -131,9 +131,9 @@ sequenceDiagram
     Note over G,PS: Step 2 - pay
     G->>GW: POST /api/bookings/{id}/pay {paymentMethod}
     GW->>BS: POST /bookings/{id}/pay
-    BS->>BS: SELECT booking FOR UPDATE, must be PENDING and not expired
-    BS->>PS: POST /internal/payments {bookingId, amount}
-    PS->>PS: simulated gateway decision, INSERT payments
+    BS->>BS: short transaction: PENDING and not expired → PAYMENT_IN_PROGRESS (committed, no lock kept)
+    BS->>PS: POST /internal/payments {bookingId, amount} (idempotent per booking)
+    PS->>PS: simulated gateway decision, INSERT payments (unique success per booking)
     alt payment FAILED
         PS-->>BS: status FAILED
         BS->>RS: POST /internal/holds/{holdId}/release
@@ -147,10 +147,15 @@ sequenceDiagram
             BS->>BS: booking → CONFIRMED
             BS-->>G: outcome SUCCESS, booking CONFIRMED
         else confirm failed (hold expired / Room Service down)
-            BS->>PS: POST /internal/payments/{id}/refund (compensation)
+            BS->>BS: booking → CANCELLATION_PENDING (committed)
+            BS->>PS: POST /internal/payments/{id}/refund (compensation, FIRST)
+            BS->>RS: POST /internal/holds/{holdId}/release (SECOND)
             BS->>BS: booking → CANCELLED "payment refunded"
-            BS-->>G: outcome - not confirmed, refunded
+            BS-->>G: outcome - not confirmed, refunded (or "refund in progress" – retried by the recovery job)
         end
+    else no answer (timeout / outage)
+        BS->>PS: GET /internal/payments/booking/{id}
+        BS-->>G: 202 UNKNOWN - booking stays PAYMENT_IN_PROGRESS, recovery job settles it later
     end
 ```
 

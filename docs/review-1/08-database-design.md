@@ -123,7 +123,7 @@ Relationships inside the room database: `hotels 1 ─ * rooms 1 ─ * room_holds
 | `check_in`, `check_out` | date | not null | |
 | `number_of_guests` | integer | not null | |
 | `total_amount` | numeric(12,2) | not null | from Room Service, never from client |
-| `status` | varchar(20) | check `PENDING`/`CONFIRMED`/`CANCELLED`; index `idx_bookings_status` | |
+| `status` | varchar(20) | check `PENDING`/`PAYMENT_IN_PROGRESS`/`CONFIRMED`/`CANCELLATION_PENDING`/`CANCELLED`; index `idx_bookings_status` | the two intermediate states are persisted recovery states (see `09-booking-workflow.md`); on an existing database `BookingStatusConstraintUpdater` widens the old 3-value constraint at start-up |
 | `status_reason` | varchar(255) | | e.g. "Payment failed: …" |
 | `hold_expires_at` | timestamptz | | payment deadline |
 | `payment_id` | bigint | | Payment Service id, no FK |
@@ -148,6 +148,7 @@ Relationships inside the room database: `hotels 1 ─ * rooms 1 ─ * room_holds
 | `failure_reason` | varchar(255) | | |
 | `created_at`, `updated_at` | timestamptz | not null | |
 | `refunded_at` | timestamptz | | |
+| `success_booking_id` | bigint | **unique** (`uk_payments_success_booking`), nullable | set to `booking_id` when the payment succeeded and kept after a refund; guarantees at most one successful charge per booking even if two requests race |
 
 Several FAILED attempts per booking are allowed (history); the service rejects a second SUCCESS for the same
 booking.
@@ -161,7 +162,7 @@ booking.
 | `SELECT … FOR UPDATE` on `bookings` row during payment/cancel | bookings | double payment, pay vs cancel race |
 | `@Version` optimistic locking | bookings | lost updates (e.g. expiry job vs user action) |
 | `SELECT … FOR UPDATE` on `payments` row during refund | payments | double refund |
-| Unique constraints | users.email, rooms(hotel_id, room_number), hotels(name, city), payments.transaction_reference | duplicates under concurrent inserts |
+| Unique constraints | users.email, rooms(hotel_id, room_number), hotels(name, city), payments.transaction_reference, **payments.success_booking_id** | duplicates under concurrent inserts, **double charge of one booking** |
 
 ## 7. Demonstration data
 

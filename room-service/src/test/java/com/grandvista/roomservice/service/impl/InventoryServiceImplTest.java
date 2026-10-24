@@ -164,4 +164,13 @@ class InventoryServiceImplTest {
                 new BigDecimal("15000.00"), 60, new BigDecimal("1.10"), List.of("High demand"), List.of(),
                 new BigDecimal(total).subtract(new BigDecimal("15000.00")), new BigDecimal(total));
     }
+
+    @Test
+    void trustedServiceCannotCreateAHoldBecauseItActsForNoGuest() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.createHold(
+                        new com.grandvista.roomservice.dto.CreateHoldRequest(10L, CHECK_IN, CHECK_OUT, 2),
+                        AuthenticatedUser.SYSTEM))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        org.mockito.Mockito.verifyNoInteractions(roomRepository, holdRepository);
+    }
 }

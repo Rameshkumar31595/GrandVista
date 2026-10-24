@@ -1,0 +1,180 @@
+{
+ "summary": {
+  "passed": 34,
+  "failed": 0,
+  "total": 34
+ },
+ "results": [
+  {
+   "check": "guest registers and is sent to the login page with a confirmation",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "guest logs in and lands on the room search showing their name and GUEST badge",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "wrong password shows an error and stays on the login page",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "city + date search returns only Chennai rooms",
+   "pass": true,
+   "detail": "cards=4"
+  },
+  {
+   "check": "details page keeps the searched dates",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "dynamic price breakdown is shown with a total",
+   "pass": true,
+   "detail": "₹8,000.00"
+  },
+  {
+   "check": "amount due on the payment page equals the quoted total (price consistency)",
+   "pass": true,
+   "detail": "₹8,000.00 vs ₹8,000.00"
+  },
+  {
+   "check": "payment succeeds and the booking is confirmed with a transaction reference",
+   "pass": true,
+   "detail": "GV-PAY-20261024-A5304DE0"
+  },
+  {
+   "check": "My bookings lists the confirmed booking",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "cancelling a confirmed booking shows it CANCELLED and refunded",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "declined payment shows \"not confirmed\", FAILED and a release message",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "payment outage shows \"Verifying your payment\" and warns not to pay again (not \"failed\")",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "booking shown as Payment processing with no Pay/Cancel buttons",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "My bookings offers neither Cancel nor Pay while the payment is being verified",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "the booking leaves \"Payment processing\" by itself once the Payment Service is back",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "recovered booking is PENDING again with a Pay now button (no money was taken)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "guest can pay again after recovery and the booking is confirmed",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "a tampered token ends the session: back on /login with an explanation and the token removed",
+   "pass": true,
+   "detail": "GV GrandVista Hospitality Rooms Login Register Welcome back Sign in to book and manage your stays. JWT token is invalid or malformed × Email Password Sign in Ne"
+  },
+  {
+   "check": "logout clears the session and protects My bookings",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "a guest who types /admin in the address bar gets \"Access denied\"",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "admin lands on the dashboard with inventory and booking figures",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "admin creates a hotel and it appears in the list",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "admin creates a room in the new hotel",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "the new room is immediately searchable by guests",
+   "pass": true,
+   "detail": "[{\"id\":19,\"hotelId\":7,\"hotelName\":\"E2E Hotel 1792824242655\",\"city\":\"Pune\",\"roomNumber\":\"955\",\"roomTy"
+  },
+  {
+   "check": "after the admin adds a +50% seasonal rule the guest quote rises by exactly 50%",
+   "pass": true,
+   "detail": "18200 -> 27300"
+  },
+  {
+   "check": "the quote names the rule that was applied",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "deleting the rule restores the base price",
+   "pass": true,
+   "detail": "18200"
+  },
+  {
+   "check": "deactivated room is kept (status INACTIVE) rather than deleted",
+   "pass": true,
+   "detail": "{\"id\":19,\"hotelId\":7,\"hotelName\":\"E2E Hotel 1792824242655\",\"city\":\"Pune\",\"roomNumber\":\"955\",\"roomType\":\"SUITE\",\"basePrice\":9100,\"capacity\":3,\"description\":\"\",\"status\":\"INACTIVE\"}"
+  },
+  {
+   "check": "deactivated room disappears from guest search",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "admin booking list offers all five status filters",
+   "pass": true,
+   "detail": ",PENDING,PAYMENT_IN_PROGRESS,CONFIRMED,CANCELLATION_PENDING,CANCELLED"
+  },
+  {
+   "check": "admin promotes a guest to administrator from the Users page",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "...and demotes them again",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "no page scrolls horizontally on a 390px-wide phone",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "no uncaught page errors or console errors during all journeys",
+   "pass": true,
+   "detail": ""
+  }
+ ],
+ "consoleProblems": []
+}

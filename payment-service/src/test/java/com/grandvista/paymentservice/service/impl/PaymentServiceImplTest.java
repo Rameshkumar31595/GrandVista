@@ -7,6 +7,7 @@ import com.grandvista.paymentservice.entity.Payment;
 import com.grandvista.paymentservice.entity.PaymentMethod;
 import com.grandvista.paymentservice.entity.PaymentStatus;
 import com.grandvista.paymentservice.exception.BusinessRuleException;
+import com.grandvista.paymentservice.exception.ResourceNotFoundException;
 import com.grandvista.paymentservice.repository.PaymentRepository;
 import com.grandvista.paymentservice.service.SimulatedPaymentGateway;
 import com.grandvista.paymentservice.util.AuthenticatedUser;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
@@ -22,10 +24,12 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -80,13 +84,93 @@ class PaymentServiceImplTest {
     }
 
     @Test
-    void bookingCannotBePaidTwice() {
-        when(paymentRepository.existsByBookingIdAndStatus(42L, PaymentStatus.SUCCESS)).thenReturn(true);
+    void repeatedRequestReturnsTheOriginalPaymentWithoutChargingAgain() {
+        Payment original = payment(PaymentStatus.SUCCESS);
+        when(paymentRepository.findFirstByBookingIdAndStatusInOrderByCreatedAtDesc(eq(42L), any()))
+                .thenReturn(Optional.of(original));
+
+        PaymentResponse response = service.processPayment(request("16500.00", false), USER);
+
+        assertThat(response.status()).isEqualTo(PaymentStatus.SUCCESS);
+        assertThat(response.transactionReference()).isEqualTo("GV-PAY-20260914-ABCDEF12");
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void repeatedRequestWithADifferentAmountIsRejected() {
+        when(paymentRepository.findFirstByBookingIdAndStatusInOrderByCreatedAtDesc(eq(42L), any()))
+                .thenReturn(Optional.of(payment(PaymentStatus.SUCCESS)));
+
+        assertThatThrownBy(() -> service.processPayment(request("99.00", false), USER))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("different amount");
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void duplicateRequestThatLosesTheRaceGetsTheWinningPayment() {
+        Payment winner = payment(PaymentStatus.SUCCESS);
+        // first check: nothing charged yet; after the unique constraint rejects our insert: the winner is visible
+        when(paymentRepository.findFirstByBookingIdAndStatusInOrderByCreatedAtDesc(eq(42L), any()))
+                .thenReturn(Optional.empty(), Optional.of(winner));
+        when(paymentRepository.save(any(Payment.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_payments_success_booking"));
+
+        PaymentResponse response = service.processPayment(request("16500.00", false), USER);
+
+        assertThat(response.transactionReference()).isEqualTo(winner.getTransactionReference());
+        assertThat(response.status()).isEqualTo(PaymentStatus.SUCCESS);
+    }
+
+    @Test
+    void integrityViolationWithoutAnyChargedPaymentIsNotSwallowed() {
+        when(paymentRepository.findFirstByBookingIdAndStatusInOrderByCreatedAtDesc(eq(42L), any()))
+                .thenReturn(Optional.empty());
+        when(paymentRepository.save(any(Payment.class))).thenThrow(new DataIntegrityViolationException("other"));
 
         assertThatThrownBy(() -> service.processPayment(request("16500.00", false), USER))
-                .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("already been paid");
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void trustedServiceWithoutAGuestCannotCreateAPayment() {
+        assertThatThrownBy(() -> service.processPayment(request("16500.00", false), AuthenticatedUser.SYSTEM))
+                .isInstanceOf(AccessDeniedException.class);
         verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void outcomeForBookingPrefersTheChargedPayment() {
+        when(paymentRepository.findFirstByBookingIdAndStatusInOrderByCreatedAtDesc(eq(42L),
+                eq(Set.of(PaymentStatus.SUCCESS, PaymentStatus.REFUNDED)))).thenReturn(Optional.of(payment(PaymentStatus.SUCCESS)));
+
+        assertThat(service.outcomeForBooking(42L).status()).isEqualTo(PaymentStatus.SUCCESS);
+    }
+
+    @Test
+    void outcomeForBookingFallsBackToTheLatestFailedAttempt() {
+        when(paymentRepository.findFirstByBookingIdAndStatusInOrderByCreatedAtDesc(eq(42L),
+                eq(Set.of(PaymentStatus.SUCCESS, PaymentStatus.REFUNDED)))).thenReturn(Optional.empty());
+        when(paymentRepository.findFirstByBookingIdAndStatusInOrderByCreatedAtDesc(eq(42L),
+                eq(Set.of(PaymentStatus.FAILED)))).thenReturn(Optional.of(payment(PaymentStatus.FAILED)));
+
+        assertThat(service.outcomeForBooking(42L).status()).isEqualTo(PaymentStatus.FAILED);
+    }
+
+    @Test
+    void outcomeForBookingWithoutAnyAttemptIsNotFound() {
+        when(paymentRepository.findFirstByBookingIdAndStatusInOrderByCreatedAtDesc(eq(42L), any()))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.outcomeForBooking(42L)).isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void trustedServiceMayRefundAnyPayment() {
+        Payment payment = payment(PaymentStatus.SUCCESS);
+        when(paymentRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(payment));
+
+        assertThat(service.refund(1L, AuthenticatedUser.SYSTEM).status()).isEqualTo(PaymentStatus.REFUNDED);
     }
 
     @Test

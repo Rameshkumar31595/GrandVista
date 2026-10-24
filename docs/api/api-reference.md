@@ -26,7 +26,8 @@ Legend: **P** public · **A** any authenticated · **U** `ROLE_USER` · **AD** `
 | 401 | Missing, malformed or expired JWT; wrong login credentials |
 | 403 | Role not allowed, not the owner, internal endpoint without service key |
 | 404 | Unknown hotel/room/booking/payment |
-| 409 | Duplicate email/room, room already reserved, booking not PENDING, already paid |
+| 409 | Duplicate email/room, room already reserved, booking not PENDING (including PAYMENT_IN_PROGRESS), payment replay with a different amount |
+| 202 | `POST /bookings/{id}/pay` only: the payment outcome is not known yet (see below) |
 | 503 | Downstream service unavailable |
 
 ## AUTH-SERVICE (`/api/auth/**` → `lb://AUTH-SERVICE`)
@@ -106,11 +107,15 @@ Legend: **P** public · **A** any authenticated · **U** `ROLE_USER` · **AD** `
 | Method | Path | Access | Body | Response |
 |---|---|---|---|---|
 | POST | `/bookings` | U | `{roomId, checkIn, checkOut, numberOfGuests}` | 201 `BookingResponse` (PENDING) |
-| POST | `/bookings/{bookingId}/pay` | U (owner) | `{paymentMethod: CARD\|UPI\|NET_BANKING\|WALLET, simulateFailure?: boolean}` | 200 `{booking, paymentStatus, transactionReference, message}` |
+| POST | `/bookings/{bookingId}/pay` | U (owner) | `{paymentMethod: CARD\|UPI\|NET_BANKING\|WALLET, simulateFailure?: boolean}` | 200 `{booking, paymentStatus, transactionReference, message}`; **202** with `paymentStatus: "UNKNOWN"` when the Payment Service did not answer in time (booking stays `PAYMENT_IN_PROGRESS`, resolved automatically) |
 | POST | `/bookings/{bookingId}/cancel` | O | – | `BookingResponse` |
 | GET | `/bookings/my` | U | – | `BookingResponse[]` |
 | GET | `/bookings/{bookingId}` | O | – | `BookingResponse` |
 | GET | `/bookings` | AD | query `status?` | `BookingResponse[]` |
+
+`bookingStatus` is one of `PENDING`, `PAYMENT_IN_PROGRESS`, `CONFIRMED`, `CANCELLATION_PENDING`, `CANCELLED`
+(see `docs/review-1/09-booking-workflow.md`). The two intermediate states settle on their own; a guest can neither
+pay nor cancel a booking while it is in one of them (409).
 
 `BookingResponse`: `{bookingId, userId, roomId, hotelId, hotelName, roomNumber, roomType, checkIn, checkOut, nights,
 numberOfGuests, totalAmount, currency, bookingStatus, statusReason, paymentDueBy, paymentId, paymentReference,
@@ -125,7 +130,10 @@ createdAt, updatedAt}`
 | GET | `/payments/booking/{bookingId}` | O | `PaymentResponse[]` |
 | GET | `/payments` | AD | `PaymentResponse[]` |
 
-Internal: `POST /internal/payments {bookingId, amount, method, simulateFailure}`, `POST /internal/payments/{id}/refund`.
+Internal (booking-service only; never routed by the gateway; `X-Internal-Api-Key` required):
+`POST /internal/payments {bookingId, amount, method, simulateFailure}` (idempotent per booking),
+`GET /internal/payments/booking/{bookingId}` (charged payment, else latest failed attempt, else 404 – used to resolve a lost
+response), `POST /internal/payments/{id}/refund` (idempotent).
 
 `PaymentResponse`: `{paymentId, bookingId, userId, amount, currency, method, status, transactionReference,
 failureReason, createdAt, refundedAt}`

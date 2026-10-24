@@ -8,12 +8,17 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     boolean existsByBookingIdAndStatus(Long bookingId, PaymentStatus status);
+
+    /** The payment that actually moved money for a booking (SUCCESS, or REFUNDED once it was returned). */
+    Optional<Payment> findFirstByBookingIdAndStatusInOrderByCreatedAtDesc(Long bookingId,
+                                                                          Collection<PaymentStatus> statuses);
 
     List<Payment> findByUserIdOrderByCreatedAtDesc(Long userId);
 

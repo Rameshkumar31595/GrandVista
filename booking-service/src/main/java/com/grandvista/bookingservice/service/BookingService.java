@@ -26,4 +26,13 @@ public interface BookingService {
     List<BookingResponse> allBookings(BookingStatus status);
 
     int cancelExpiredPendingBookings();
+
+    /**
+     * Finishes distributed operations that were interrupted (timeout, crash, outage): resolves bookings stuck in
+     * PAYMENT_IN_PROGRESS by asking the Payment Service what happened, and retries the refund / room release of
+     * bookings stuck in CANCELLATION_PENDING. Safe to run on every instance at any time.
+     *
+     * @return number of bookings that were examined
+     */
+    int recoverStuckBookings();
 }

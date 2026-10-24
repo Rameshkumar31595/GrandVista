@@ -21,6 +21,9 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findByStatusOrderByCreatedAtDesc(BookingStatus status);
 
+    /** Bookings parked in an intermediate state that nobody has touched since {@code cutoff} (recovery job). */
+    List<Booking> findByStatusAndUpdatedAtBefore(BookingStatus status, Instant cutoff);
+
     /** Locks the booking row so that a double-clicked "Pay" cannot charge the same booking twice. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from Booking b where b.id = :id")

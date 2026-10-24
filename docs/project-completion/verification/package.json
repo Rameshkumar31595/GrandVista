@@ -1,0 +1,10 @@
+{
+  "name": "grandvista-verification",
+  "private": true,
+  "description": "Tooling for the live verification scripts (real-browser journeys and static docker-compose checks). Not part of the application.",
+  "type": "module",
+  "dependencies": {
+    "puppeteer-core": "25.16.0",
+    "yaml": "2.9.1"
+  }
+}

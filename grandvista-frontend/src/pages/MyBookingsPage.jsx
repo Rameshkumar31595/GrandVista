@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { bookingApi } from '../api/endpoints';
 import { Alert, EmptyState, Loading, StatusBadge, formatDate, formatDateTime, formatMoney, isoDate } from '../components/common';
+import { canGuestCancel, isInFlight } from '../utils/bookingStatus';
+import { usePolling } from '../utils/usePolling';
 
 export default function MyBookingsPage() {
   const [bookings, setBookings] = useState(null);
@@ -13,6 +15,8 @@ export default function MyBookingsPage() {
   }, []);
 
   useEffect(load, [load]);
+  // Bookings in an intermediate state settle on their own: keep refreshing until none is left.
+  usePolling(load, Boolean(bookings?.some((booking) => isInFlight(booking.bookingStatus))));
 
   const cancel = async (booking) => {
     const refundNote = booking.bookingStatus === 'CONFIRMED' ? ' Your payment will be refunded.' : '';
@@ -40,8 +44,7 @@ export default function MyBookingsPage() {
       ) : (
         <div className="booking-list">
           {bookings.map((booking) => {
-            const cancellable = booking.bookingStatus === 'PENDING'
-              || (booking.bookingStatus === 'CONFIRMED' && booking.checkIn > isoDate(0));
+            const cancellable = canGuestCancel(booking, isoDate(0));
             return (
               <article key={booking.bookingId} className="card booking-item">
                 <div className="booking-main">
@@ -56,6 +59,9 @@ export default function MyBookingsPage() {
                   {booking.paymentReference && <p className="small">Payment ref: <code>{booking.paymentReference}</code></p>}
                   {booking.bookingStatus === 'PENDING' && (
                     <p className="small warning-text">Pay before {formatDateTime(booking.paymentDueBy)}</p>
+                  )}
+                  {isInFlight(booking.bookingStatus) && (
+                    <p className="small warning-text">This booking is being updated - the status refreshes automatically.</p>
                   )}
                 </div>
                 <div className="booking-side">

@@ -18,7 +18,11 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "payments",
-        uniqueConstraints = @UniqueConstraint(name = "uk_payments_transaction_reference", columnNames = "transaction_reference"),
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_payments_transaction_reference", columnNames = "transaction_reference"),
+                // At most one successful charge per booking, enforced by the database (NULLs never collide).
+                @UniqueConstraint(name = "uk_payments_success_booking", columnNames = "success_booking_id")
+        },
         indexes = {
                 @Index(name = "idx_payments_booking", columnList = "booking_id"),
                 @Index(name = "idx_payments_user", columnList = "user_id")
@@ -66,6 +70,14 @@ public class Payment {
     @Column(name = "refunded_at")
     private Instant refundedAt;
 
+    /**
+     * Set to the booking id when this payment was charged successfully and stays set after a refund.
+     * Together with its unique constraint it guarantees that a booking can never be charged twice,
+     * even if two requests race past the application-level check.
+     */
+    @Column(name = "success_booking_id")
+    private Long successBookingId;
+
     protected Payment() {
         // required by JPA
     }
@@ -80,6 +92,7 @@ public class Payment {
         this.status = status;
         this.transactionReference = transactionReference;
         this.failureReason = failureReason;
+        this.successBookingId = status == PaymentStatus.SUCCESS ? bookingId : null;
     }
 
     @PrePersist

@@ -1,0 +1,164 @@
+{
+ "summary": {
+  "passed": 31,
+  "failed": 0,
+  "total": 31
+ },
+ "results": [
+  {
+   "check": "S1 12 simultaneous bookings of the same room+dates -> exactly one 201",
+   "pass": true,
+   "detail": "[409, 201, 409, 409, 409, 409, 409, 409, 409, 409, 409, 409]"
+  },
+  {
+   "check": "S1 all other attempts are 409 conflicts",
+   "pass": true,
+   "detail": "[409, 201, 409, 409, 409, 409, 409, 409, 409, 409, 409, 409]"
+  },
+  {
+   "check": "S1 back-to-back stay (check-in == previous check-out) is accepted",
+   "pass": true,
+   "detail": "(201, {'bookingId': 5, 'userId': 4, 'roomId': 13, 'hotelId': 4, 'hotelName': 'GrandVista Marina Bay', 'roomNumber': '101', 'roomType': 'STANDARD', 'checkIn': '2027-08-22', 'checkOut': '2027-08-24', 'n"
+  },
+  {
+   "check": "S1 partially overlapping stay by another guest is refused",
+   "pass": true,
+   "detail": "409"
+  },
+  {
+   "check": "S2 two parallel \"Pay\" clicks -> one 200 and one 409",
+   "pass": true,
+   "detail": "[409, 200]"
+  },
+  {
+   "check": "S2 booking is CONFIRMED",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "S2 exactly one payment row exists for the booking",
+   "pass": true,
+   "detail": "[{'paymentId': 4, 'bookingId': 6, 'userId': 4, 'amount': 8000.0, 'currency': 'INR', 'method': 'UPI', 'status': 'SUCCESS', 'transactionReference': 'GV-PAY-20261024-34BA8B03', 'failureReason': None, 'cr"
+  },
+  {
+   "check": "S2 replayed internal payment requests return the SAME successful payment",
+   "pass": true,
+   "detail": "[(201, {'paymentId': 4, 'bookingId': 6, 'userId': 4, 'amount': 8000.0, 'currency': 'INR', 'method': 'UPI', 'status': 'SUCCESS', 'transactionReference': 'GV-PAY-20261024-34BA8B03', 'failureReason': Non"
+  },
+  {
+   "check": "S2 still exactly one payment row after the replays",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "S2 replay with a different amount is rejected (409)",
+   "pass": true,
+   "detail": "409"
+  },
+  {
+   "check": "S3 setup: booking B confirmed",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "S3 pay during outage -> 202 with UNKNOWN (not a failure, not a cancel)",
+   "pass": true,
+   "detail": "(202, {'booking': {'bookingId': 7, 'userId': 4, 'roomId': 15, 'hotelId': 4, 'hotelName': 'GrandVista Marina Bay', 'roomNumber': '203', 'roomType': 'DELUXE', 'checkIn': '2027-08-20', 'checkOut': '2027-"
+  },
+  {
+   "check": "S3 booking A is PAYMENT_IN_PROGRESS (not cancelled)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "S3 cancelling a booking whose payment is in progress is refused (409)",
+   "pass": true,
+   "detail": "409"
+  },
+  {
+   "check": "S3 a second pay click while in progress is refused (409)",
+   "pass": true,
+   "detail": "409"
+  },
+  {
+   "check": "S3 booking C also parked as 202 / UNKNOWN",
+   "pass": true,
+   "detail": "(202, {'booking': {'bookingId': 9, 'userId': 4, 'roomId': 9, 'hotelId': 3, 'hotelName': 'GrandVista Indiranagar Suites', 'roomNumber': '101', 'roomType': 'STANDARD', 'checkIn': '2027-08-20', 'checkOut"
+  },
+  {
+   "check": "S3 cancel of confirmed B during refund outage -> CANCELLATION_PENDING",
+   "pass": true,
+   "detail": "(200, {'bookingId': 8, 'userId': 4, 'roomId': 16, 'hotelId': 4, 'hotelName': 'GrandVista Marina Bay', 'roomNumber': '301', 'roomType': 'SUITE', 'checkIn': '2027-08-20', 'checkOut': '2027-08-22', 'nigh"
+  },
+  {
+   "check": "S3 room of B is STILL reserved while the refund is outstanding",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "S3 payment-service back up",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "S3 simulated \"charge happened but response was lost\" for C",
+   "pass": true,
+   "detail": "(201, {'paymentId': 6, 'bookingId': 9, 'userId': 4, 'amount': 7800.0, 'currency': 'INR', 'method': 'UPI', 'status': 'SUCCESS', 'transactionReference': 'GV-PAY-20261024-C52C69AD', 'failureReason': None"
+  },
+  {
+   "check": "S3 recovery job resolved A, B and C",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "S3 A (no payment recorded, hold still valid) is back to PENDING",
+   "pass": true,
+   "detail": "{'bookingId': 7, 'userId': 4, 'roomId': 15, 'hotelId': 4, 'hotelName': 'GrandVista Marina Bay', 'roomNumber': '203', 'roomType': 'DELUXE', 'checkIn': '2027-08-20', 'checkOut': '2027-08-22', 'nights': "
+  },
+  {
+   "check": "S3 B is CANCELLED with the payment refunded",
+   "pass": true,
+   "detail": "{'bookingId': 8, 'userId': 4, 'roomId': 16, 'hotelId': 4, 'hotelName': 'GrandVista Marina Bay', 'roomNumber': '301', 'roomType': 'SUITE', 'checkIn': '2027-08-20', 'checkOut': '2027-08-22', 'nights': 2"
+  },
+  {
+   "check": "S3 B refund really happened (payment REFUNDED)",
+   "pass": true,
+   "detail": "[{'paymentId': 5, 'bookingId': 8, 'userId': 4, 'amount': 31250.0, 'currency': 'INR', 'method': 'UPI', 'status': 'REFUNDED', 'transactionReference': 'GV-PAY-20261024-87A79416', 'failureReason': None, '"
+  },
+  {
+   "check": "S3 room of B is available again only AFTER the refund",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "S3 C is CONFIRMED from the recovered payment",
+   "pass": true,
+   "detail": "{'bookingId': 9, 'userId': 4, 'roomId': 9, 'hotelId': 3, 'hotelName': 'GrandVista Indiranagar Suites', 'roomNumber': '101', 'roomType': 'STANDARD', 'checkIn': '2027-08-20', 'checkOut': '2027-08-22', '"
+  },
+  {
+   "check": "S3 C has exactly one payment",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "S3 guest can pay A after recovery -> CONFIRMED",
+   "pass": true,
+   "detail": "(200, {'booking': {'bookingId': 7, 'userId': 4, 'roomId': 15, 'hotelId': 4, 'hotelName': 'GrandVista Marina Bay', 'roomNumber': '203', 'roomType': 'DELUXE', 'checkIn': '2027-08-20', 'checkOut': '2027-"
+  },
+  {
+   "check": "S4 healthy cancel -> CANCELLED, refunded, room free",
+   "pass": true,
+   "detail": "{'bookingId': 10, 'userId': 4, 'roomId': 10, 'hotelId': 3, 'hotelName': 'GrandVista Indiranagar Suites', 'roomNumber': '102', 'roomType': 'STANDARD', 'checkIn': '2027-08-20', 'checkOut': '2027-08-22',"
+  },
+  {
+   "check": "S4 cancelling again is a clean 409",
+   "pass": true,
+   "detail": "409"
+  },
+  {
+   "check": "S4 another guest cannot cancel someone else's booking (403)",
+   "pass": true,
+   "detail": "403"
+  }
+ ]
+}

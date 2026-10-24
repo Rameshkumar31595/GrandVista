@@ -17,12 +17,14 @@ import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
  * Common plumbing for calls to other microservices:
  * <ul>
- *   <li>propagates the caller's JWT (so downstream services know WHO the user is and enforce ownership)</li>
+ *   <li>propagates the caller's JWT (so downstream services know WHO the user is and enforce ownership)
+ *       when there is one</li>
  *   <li>adds the X-Internal-Api-Key header (proves the call comes from a trusted service)</li>
  *   <li>translates failures: business 4xx errors keep their status and message, while
  *       unreachable / unregistered / 5xx services become a clean 503</li>
@@ -43,11 +45,24 @@ public class DownstreamCallExecutor {
         this.jsonMapper = jsonMapper;
     }
 
-    /** Adds identity headers to an outgoing request. */
+    /**
+     * Adds identity headers to an outgoing request: the caller's JWT (so downstream services know WHO the
+     * guest is) plus the internal API key. Outside a user request (the recovery job) there is no JWT, and the
+     * call goes out with the internal key alone, which the downstream services treat as the trusted system.
+     */
     public <S extends RestClient.RequestHeadersSpec<S>> S authorize(S request) {
-        return request
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + currentBearerToken())
-                .header(INTERNAL_KEY_HEADER, internalApiKey);
+        return request.headers(identityHeaders());
+    }
+
+    /** Same headers as {@link #authorize}, for request specs whose generic type cannot be passed to it. */
+    public Consumer<HttpHeaders> identityHeaders() {
+        String bearerToken = currentBearerToken();
+        return headers -> {
+            if (bearerToken != null) {
+                headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken);
+            }
+            headers.set(INTERNAL_KEY_HEADER, internalApiKey);
+        };
     }
 
     public <T> T execute(String serviceName, Supplier<T> call) {
@@ -69,12 +84,13 @@ public class DownstreamCallExecutor {
         }
     }
 
+    /** The current user's JWT, or null when no user request is being served (background job). */
     private static String currentBearerToken() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication instanceof JwtAuthenticationToken jwtAuthentication) {
             return jwtAuthentication.getToken().getTokenValue();
         }
-        throw new IllegalStateException("No authenticated JWT available to propagate to downstream service");
+        return null;
     }
 
     private String extractMessage(String body) {

@@ -68,7 +68,7 @@ export default function RoomsPage() {
           </select>
         </label>
         <label>Guests<input type="number" min="1" max="10" value={form.guests} onChange={update('guests')} /></label>
-        <label>Max base price<input type="number" min="1" step="100" value={form.maxPrice} onChange={update('maxPrice')} /></label>
+        <label>Max base price<input type="number" min="1" step="any" value={form.maxPrice} onChange={update('maxPrice')} /></label>
         <label>Check-in<input type="date" min={isoDate(0)} value={form.checkIn} onChange={update('checkIn')} /></label>
         <label>Check-out<input type="date" min={form.checkIn || isoDate(1)} value={form.checkOut} onChange={update('checkOut')} /></label>
         <div className="filter-actions">

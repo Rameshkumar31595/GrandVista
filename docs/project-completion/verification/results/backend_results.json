@@ -1,0 +1,214 @@
+{
+ "modules": {
+  "eureka-server": {
+   "total": {
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+   },
+   "classes": {
+    "EurekaServerApplicationTests": {
+     "tests": 1,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    }
+   }
+  },
+  "api-gateway": {
+   "total": {
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+   },
+   "classes": {
+    "GatewaySecurityIntegrationTest": {
+     "tests": 8,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    }
+   }
+  },
+  "auth-service": {
+   "total": {
+    "tests": 18,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+   },
+   "classes": {
+    "AuthControllerSecurityTest": {
+     "tests": 6,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "UserRepositoryTest": {
+     "tests": 2,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "JwtTokenProviderTest": {
+     "tests": 5,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "SecurityErrorWriterTest": {
+     "tests": 1,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "AuthServiceImplTest": {
+     "tests": 4,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    }
+   }
+  },
+  "room-service": {
+   "total": {
+    "tests": 66,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+   },
+   "classes": {
+    "RoomSecurityTest": {
+     "tests": 12,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "RoomHoldRepositoryTest": {
+     "tests": 4,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "InternalApiKeyFilterTest": {
+     "tests": 6,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "PriceCalculatorTest": {
+     "tests": 12,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "ConcurrentHoldIntegrationTest": {
+     "tests": 1,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "ConcurrentHoldPostgresIntegrationTest": {
+     "tests": 4,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "InventoryServiceImplTest": {
+     "tests": 9,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "PricingServiceImplTest": {
+     "tests": 5,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "StayPeriodTest": {
+     "tests": 13,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    }
+   }
+  },
+  "booking-service": {
+   "total": {
+    "tests": 40,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+   },
+   "classes": {
+    "RoomServiceClientTest": {
+     "tests": 3,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "BookingSecurityTest": {
+     "tests": 4,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "BookingRepositoryTest": {
+     "tests": 2,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "BookingServiceImplTest": {
+     "tests": 31,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    }
+   }
+  },
+  "payment-service": {
+   "total": {
+    "tests": 33,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+   },
+   "classes": {
+    "PaymentSecurityTest": {
+     "tests": 7,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "PaymentRepositoryTest": {
+     "tests": 5,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "InternalApiKeyFilterTest": {
+     "tests": 6,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    },
+    "PaymentServiceImplTest": {
+     "tests": 15,
+     "failures": 0,
+     "errors": 0,
+     "skipped": 0
+    }
+   }
+  }
+ },
+ "total": {
+  "tests": 166,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0
+ }
+}

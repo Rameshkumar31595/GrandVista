@@ -7,11 +7,20 @@ stateDiagram-v2
     direction LR
     state "Booking (booking DB)" as B {
         [*] --> PENDING: hold created
-        PENDING --> CONFIRMED: payment SUCCESS + hold confirmed
-        PENDING --> CANCELLED: payment FAILED / user cancels / window expired / confirm failed (refunded)
-        CONFIRMED --> CANCELLED: cancel before check-in (release + refund)
+        PENDING --> PAYMENT_IN_PROGRESS: guest presses Pay (committed BEFORE the remote call)
+        PENDING --> CANCELLED: user cancels / payment window expired
+        PAYMENT_IN_PROGRESS --> CONFIRMED: payment SUCCESS + hold confirmed
+        PAYMENT_IN_PROGRESS --> CANCELLED: payment FAILED / no payment was ever recorded and the hold lapsed
+        PAYMENT_IN_PROGRESS --> PENDING: payment request rejected (4xx) or no payment recorded and hold still valid
+        PAYMENT_IN_PROGRESS --> CANCELLATION_PENDING: payment SUCCESS but room not confirmed
+        CONFIRMED --> CANCELLATION_PENDING: cancel before check-in
+        CANCELLATION_PENDING --> CANCELLED: refund done, THEN room released
     }
 ```
+
+`PAYMENT_IN_PROGRESS` and `CANCELLATION_PENDING` are **persisted recovery states**: if a call times out or a service
+crashes in the middle of the workflow the booking is parked in one of them and a recovery job finishes the work
+(section 6). They are never expired or cancelled blindly.
 
 ```mermaid
 stateDiagram-v2
@@ -100,52 +109,85 @@ correct behaviour with the least complexity for this project.
 
 ## 4. Step 2 – pay (`POST /api/bookings/{id}/pay`)
 
-Booking Service, inside a transaction holding `SELECT … FOR UPDATE` on the booking row:
+Booking Service. **No database transaction or lock is held while a remote service is called**; every local state
+change is a short transaction that re-checks the status under a row lock.
 
 | # | Action | On failure |
 |---|---|---|
-| 1 | Booking exists, belongs to caller, status PENDING | 404 / 403 / 409 |
-| 2 | Payment window not expired | booking CANCELLED, hold released, no charge |
-| 3 | `POST PAYMENT-SERVICE/internal/payments` (amount from booking) | Payment Service unreachable → **503**, booking stays PENDING (user may retry until deadline) |
-| 4a | Payment **FAILED** | release hold → booking CANCELLED "Payment failed: …" |
-| 4b | Payment **SUCCESS** → `POST ROOM-SERVICE/internal/holds/{id}/confirm` | confirm fails (hold expired, Room Service down) → **refund** payment → booking CANCELLED "Room could not be confirmed – payment refunded" |
-| 5 | Booking CONFIRMED with payment id + transaction reference | – |
+| 1 | *Claim* (short transaction): booking exists, belongs to caller, status PENDING, hold not expired → status becomes **PAYMENT_IN_PROGRESS** and is committed | 404 / 403 / 409; an expired window cancels the booking and releases the hold without charging |
+| 2 | `POST PAYMENT-SERVICE/internal/payments` (amount from the booking, **idempotent per booking**) | see below |
+| 3a | Payment **FAILED** | booking CANCELLED "Payment failed: …", hold released |
+| 3b | Payment **SUCCESS** → payment id stored, then `POST ROOM-SERVICE/internal/holds/{id}/confirm` | confirm fails → booking **CANCELLATION_PENDING** → refund, *then* release (section 5) |
+| 4 | Booking CONFIRMED with payment id + transaction reference | – |
 
-The row lock means a double-clicked "Pay" is processed sequentially: the second request finds the booking already
-CONFIRMED and gets 409. Payment Service additionally refuses a second SUCCESS for the same booking.
+What happens when step 2 does not return a clean answer:
+
+| Situation | Behaviour |
+|---|---|
+| Payment Service rejects the request (4xx) | nothing was charged: booking returns to PENDING, the guest may retry; the 4xx is passed on |
+| Timeout, connection lost, 5xx, no instance registered | the charge may or may not have happened. The booking **stays PAYMENT_IN_PROGRESS**; Booking Service asks `GET /internal/payments/booking/{id}` once, and if that is also unavailable it answers **202** with `paymentStatus: "UNKNOWN"` ("do not pay again"). The recovery job resolves it later. |
+| A second "Pay" click or a cancel while PAYMENT_IN_PROGRESS | 409 – only the payment outcome may move the booking on |
+
+Payment Service makes the charge idempotent twice over: an application check returns the original SUCCESS payment for
+a repeated request, and the database column `payments.success_booking_id` has a **unique constraint**, so two racing
+requests cannot both insert a successful charge (the loser catches the violation and returns the winner).
 
 ## 5. Cancellation and expiry
 
-* **PENDING** → release hold → CANCELLED.
-* **CONFIRMED** (only before check-in date) → release hold → refund payment → CANCELLED. Both remote operations are
-  idempotent, so a retry after a partial failure is safe.
+* **PENDING** → CANCELLED, hold released (a hold that could not be released still lapses on its own).
+* **CONFIRMED** (only before check-in date) → **CANCELLATION_PENDING** (committed) → **refund first**, then
+  release the room → CANCELLED. Releasing the room only after the money is returned means the inventory is never
+  freed for a new guest while the original booking is still paid and confirmed. Both remote operations are
+  idempotent; if either fails the booking simply stays CANCELLATION_PENDING (the room stays reserved) and the
+  recovery job retries. Calling cancel again just retries the unfinished cancellation.
 * **Expiry:** a HELD row stops blocking the room the moment `expires_at` passes (the condition is part of every
   availability query), so inventory is never blocked incorrectly even if Booking Service crashes. Housekeeping
-  jobs run every minute: Room Service marks such holds EXPIRED; Booking Service marks the matching PENDING bookings
-  CANCELLED.
+  jobs run every minute: Room Service marks such holds EXPIRED; Booking Service marks the matching **PENDING**
+  bookings CANCELLED (a booking in PAYMENT_IN_PROGRESS is never expired by this job).
 
 ## 6. Distributed consistency – what is and is not guaranteed
 
-There is **no ACID transaction spanning the three databases**. The workflow is an **orchestration-based saga**:
-each step commits locally and each failure path has an explicit compensating action.
+There is **no ACID transaction spanning the three databases** and none is claimed. The workflow is an
+**orchestration-based saga with persisted recovery states**: each step commits locally, each failure path has an
+explicit compensating action, and the intermediate states survive a crash.
 
 | Guarantee | Provided by |
 |---|---|
-| No two active holds overlap for a room | local transaction + row lock in Room Service |
-| Unpaid bookings never block inventory permanently | hold expiry built into availability query |
+| No two active holds overlap for a room | local transaction + row lock in Room Service (proven on real PostgreSQL, 16 concurrent requests → 1 winner) |
+| Unpaid bookings never block inventory permanently | hold expiry built into the availability query |
 | Failed payment frees the room | release compensation (and expiry as fallback) |
-| Paid but unconfirmable booking is refunded | refund compensation |
-| No double payment | booking row lock + Payment Service check |
+| Paid but unconfirmable booking is refunded | CANCELLATION_PENDING → refund, retried until it succeeds |
+| **A booking can never be charged twice** | idempotent payment per booking + `uk_payments_success_booking` unique constraint |
+| **An ambiguous payment is never cancelled blindly** | stays PAYMENT_IN_PROGRESS; the Payment Service is asked what really happened |
+| **Inventory is not released while the guest is still paid** | cancellation refunds first, releases second |
+| No database lock is held across a remote call | state changes are short transactions around the calls |
+| Two instances (or request thread + recovery job) cannot complete the same step twice | every transition re-checks the status under a row lock; all remote operations are idempotent |
 
-**Known windows (documented, not hidden):**
+**Recovery job** (`BookingRecoveryScheduler`, every 30 s on every Booking Service instance):
 
-1. If Booking Service crashes after Payment SUCCESS but before saving CONFIRMED, the payment exists while the
-   booking stays PENDING and later expires. A production system would reconcile using the transactional outbox
-   pattern or a periodic reconciliation job comparing `payments` and `bookings`.
-2. If both confirm **and** refund fail, the booking is cancelled with reason "refund pending manual review" and an
-   ERROR is logged.
-3. Holding the booking row lock during synchronous remote calls is acceptable here (short, simulated payment) but
-   would be replaced by an intermediate status and asynchronous processing with real payment providers.
+| Booking found in … for longer than | Action |
+|---|---|
+| PAYMENT_IN_PROGRESS (`grandvista.booking.payment-recovery-after`, 60 s – must stay above the 10 s client read timeout) | ask Payment Service: SUCCESS → store payment, confirm room (or refund if the hold meanwhile expired); FAILED → cancel + release; **no attempt recorded** → back to PENDING if the hold is still valid, otherwise CANCELLED + release; Payment Service unreachable → leave untouched, retry next round |
+| CANCELLATION_PENDING (`grandvista.booking.cancellation-retry-after`, 30 s) | refund (idempotent) → release room (404 = already gone) → CANCELLED |
+
+**Internal authentication of the recovery job:** it runs outside any user request, so it calls the internal endpoints
+with the internal API key only. Room and Payment Service treat "valid key, no Authorization header" as the trusted
+*system* principal (administrator-equivalent, no user id): it may confirm/release holds, refund and look up payments,
+but it can **not** create a hold or a payment (those need a guest). A request that carries an invalid JWT is still
+rejected with 401 even when it also carries the key.
+
+**Known residual windows (documented, not hidden):**
+
+1. If the Payment Service accepts a payment request but its processing finishes **more than
+   `payment-recovery-after` (60 s) after the request was sent**, and the recovery job meanwhile found no attempt and
+   cancelled the booking, a successful charge could exist for a cancelled booking. With a 10 s read timeout this
+   requires a payment that takes six times longer than the client is willing to wait. A production system would add a
+   reconciliation sweep of SUCCESS payments against bookings (or the transactional outbox pattern).
+2. A refund that can never succeed (for example the payment record was deleted) leaves the booking in
+   CANCELLATION_PENDING and is retried and logged every 30 s; it needs manual intervention.
+3. The Booking Service request thread still performs the remote calls synchronously (the guest waits for the
+   result); only the *locks* were removed, not the latency. Real payment providers would use asynchronous callbacks.
+4. The simulated payment gateway is deterministic and never contacts a bank.
 
 ## 7. Tests covering the workflow
 
@@ -153,8 +195,11 @@ each step commits locally and each failure path has an explicit compensating act
 |---|---|
 | `StayPeriodTest` | overlap table above, reversed/past/too-long ranges |
 | `RoomHoldRepositoryTest` | confirmed/held block, expired/released do not, date search excludes reserved rooms |
-| `ConcurrentHoldIntegrationTest` | 8 concurrent requests → 1 success |
-| `InventoryServiceImplTest` | capacity, maintenance room, price stored, expired confirm, idempotent release, ownership |
-| `BookingServiceImplTest` | invalid dates, 409 propagation, pending creation, release on save failure, success, payment failure, refund compensation, payment outage, expired window, double payment, ownership, cancel with refund |
-| `PaymentServiceImplTest` | success, simulated failure, limit, duplicate success, refund idempotency |
+| `ConcurrentHoldIntegrationTest` | 8 concurrent requests → 1 success (H2) |
+| `ConcurrentHoldPostgresIntegrationTest` | on **real PostgreSQL** (needs `GV_TEST_PG_URL`, see TEST_VERIFICATION_REPORT): 16 concurrent → 1 winner, staggered overlapping windows never overlap, back-to-back stays all accepted, different rooms never block each other |
+| `InventoryServiceImplTest` | capacity, maintenance room, price stored, expired confirm, idempotent release, ownership, system principal cannot hold |
+| `BookingServiceImplTest` | invalid dates, 409 propagation, pending creation, release on save failure, success, payment failure, refund-first compensation, refund failure keeps the room reserved, payment timeout stays IN_PROGRESS, lost response resolved by lookup (SUCCESS and FAILED), recovery (success / expired hold / no payment + valid hold / no payment + expired / service still down), rejected request returns to PENDING, double pay click, cancel during payment, idempotent re-cancel, ownership |
+| `PaymentServiceImplTest` | success, simulated failure, limit, **idempotent replay**, replay with different amount, **lost race → winner returned**, system principal cannot pay, outcome lookup, refund idempotency |
+| `PaymentRepositoryTest` | **DB rejects a second successful charge**, failed attempts never block, a refunded payment still occupies the slot |
+| `InternalApiKeyFilterTest` (room, payment) | **percent-encoded `/%69nternal/...` is still internal**, wrong/missing key rejected and never marked verified, system principal, JWT identity not replaced, authorization rule needs the verified key |
 | `RoomServiceClientTest` | JWT + internal key propagation, 409 pass-through, 5xx → 503 |

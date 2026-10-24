@@ -87,6 +87,9 @@ public class InventoryServiceImpl implements InventoryService {
     @Override
     @Transactional
     public HoldResponse createHold(CreateHoldRequest request, AuthenticatedUser user) {
+        if (user.isSystem()) {
+            throw new AccessDeniedException("A reservation hold must be made on behalf of a guest");
+        }
         StayPeriod stay = validStay(request.checkIn(), request.checkOut());
         Room room = roomRepository.findByIdForUpdate(request.roomId())
                 .orElseThrow(() -> new ResourceNotFoundException("Room " + request.roomId() + " not found"));

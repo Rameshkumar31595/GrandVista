@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { bookingApi, roomApi } from '../../api/endpoints';
 import { Alert, Loading, formatMoney } from '../../components/common';
+import { dashboardCounts } from '../../utils/bookingStatus';
 
 export default function AdminDashboardPage() {
   const [summary, setSummary] = useState(null);
@@ -16,8 +17,8 @@ export default function AdminDashboardPage() {
 
   if (!summary) return <div className="container section">{error ? <Alert>{error}</Alert> : <Loading />}</div>;
 
-  const count = (status) => bookings.filter((b) => b.bookingStatus === status).length;
-  const revenue = bookings.filter((b) => b.bookingStatus === 'CONFIRMED').reduce((sum, b) => sum + Number(b.totalAmount), 0);
+  const counts = dashboardCounts(bookings);
+  const revenue = counts.confirmedValue;
   const totalRooms = summary.reduce((sum, hotel) => sum + hotel.totalRooms, 0);
 
   return (
@@ -26,7 +27,7 @@ export default function AdminDashboardPage() {
       <div className="grid grid-4 stats">
         <div className="card stat"><span>Hotels</span><strong>{summary.length}</strong></div>
         <div className="card stat"><span>Rooms</span><strong>{totalRooms}</strong></div>
-        <div className="card stat"><span>Confirmed / Pending / Cancelled</span><strong>{count('CONFIRMED')} / {count('PENDING')} / {count('CANCELLED')}</strong></div>
+        <div className="card stat"><span>Confirmed / Pending / Cancelled</span><strong>{counts.confirmed} / {counts.pending} / {counts.cancelled}</strong></div>
         <div className="card stat"><span>Confirmed booking value</span><strong>{formatMoney(revenue)}</strong></div>
       </div>
 
