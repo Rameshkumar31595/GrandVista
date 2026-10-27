@@ -105,6 +105,21 @@ class GatewaySecurityIntegrationTest {
     }
 
     @Test
+    void demoLoginEndpointsAreReachableWithoutATokenButNothingElseUnderThem() {
+        // passes gateway security -> 503 (no auth-service instance in this test), never 401/403
+        client.get().uri("/api/auth/demo/accounts").exchange()
+                .expectStatus().value(status -> assertThat(status).isNotIn(401, 403));
+        client.post().uri("/api/auth/demo/login").contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"accountId\":\"ramesh\"}").exchange()
+                .expectStatus().value(status -> assertThat(status).isNotIn(401, 403));
+
+        // wrong method / sibling paths stay protected
+        client.get().uri("/api/auth/demo/login").exchange().expectStatus().isUnauthorized();
+        client.post().uri("/api/auth/demo/accounts").exchange().expectStatus().isUnauthorized();
+        client.get().uri("/api/auth/demo/anything-else").exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test
     void corsPreflightAllowsReactDevServerOnly() {
         client.options().uri("/api/bookings")
                 .header(HttpHeaders.ORIGIN, "http://localhost:5173")

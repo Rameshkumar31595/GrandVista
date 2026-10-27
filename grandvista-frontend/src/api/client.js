@@ -11,7 +11,7 @@ export class ApiError extends Error {
   }
 }
 
-const PUBLIC_AUTH_PATHS = new Set(['/auth/login', '/auth/register']);
+const PUBLIC_AUTH_PATHS = new Set(['/auth/login', '/auth/register', '/auth/demo/accounts', '/auth/demo/login']);
 
 let unauthorizedHandler = null;
 

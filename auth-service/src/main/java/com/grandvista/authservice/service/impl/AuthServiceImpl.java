@@ -1,11 +1,13 @@
 package com.grandvista.authservice.service.impl;
 
+import com.grandvista.authservice.demo.DemoAccount;
 import com.grandvista.authservice.dto.AuthResponse;
 import com.grandvista.authservice.dto.LoginRequest;
 import com.grandvista.authservice.dto.RegisterRequest;
 import com.grandvista.authservice.dto.UserResponse;
 import com.grandvista.authservice.entity.Role;
 import com.grandvista.authservice.entity.User;
+import com.grandvista.authservice.exception.BusinessRuleException;
 import com.grandvista.authservice.exception.DuplicateEmailException;
 import com.grandvista.authservice.exception.InvalidCredentialsException;
 import com.grandvista.authservice.exception.ResourceNotFoundException;
@@ -44,6 +46,9 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public UserResponse register(RegisterRequest request) {
         String email = normalizeEmail(request.email());
+        if (DemoAccount.isReservedEmail(email)) {
+            throw new BusinessRuleException("This e-mail domain is reserved");
+        }
         if (userRepository.existsByEmail(email)) {
             throw new DuplicateEmailException(email);
         }

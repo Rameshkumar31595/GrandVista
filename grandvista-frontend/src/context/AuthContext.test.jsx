@@ -8,7 +8,7 @@ import { authApi } from '../api/endpoints';
 import { LocationProbe, makeJwt } from '../test/helpers';
 import { AuthProvider, useAuth } from './AuthContext';
 
-vi.mock('../api/endpoints', () => ({ authApi: { login: vi.fn() } }));
+vi.mock('../api/endpoints', () => ({ authApi: { login: vi.fn(), demoLogin: vi.fn() } }));
 
 function Probe() {
   const auth = useAuth();
@@ -18,6 +18,7 @@ function Probe() {
       <span data-testid="role">{auth.user?.role ?? 'none'}</span>
       <span data-testid="notice">{auth.notice ?? ''}</span>
       <button type="button" onClick={() => auth.login('asha@example.com', 'pw').catch(() => {})}>login</button>
+      <button type="button" onClick={() => auth.demoLogin('manager').catch(() => {})}>demo</button>
       <button type="button" onClick={() => auth.logout()}>logout</button>
     </div>
   );
@@ -71,6 +72,28 @@ describe('AuthProvider', () => {
     expect(await screen.findByText('true')).toBeInTheDocument();
     expect(screen.getByTestId('role')).toHaveTextContent('ROLE_ADMIN');
     expect(tokenStorage.getToken()).toBe('new-token');
+  });
+
+  it('stores the session after a demo login without sending any password', async () => {
+    authApi.demoLogin.mockResolvedValue({ accessToken: 'demo-token', user: { name: 'GrandVista Manager', role: 'ROLE_ADMIN' } });
+    renderProvider();
+
+    await userEvent.click(screen.getByText('demo'));
+
+    expect(await screen.findByText('true')).toBeInTheDocument();
+    expect(authApi.demoLogin).toHaveBeenCalledWith('manager');
+    expect(screen.getByTestId('role')).toHaveTextContent('ROLE_ADMIN');
+    expect(tokenStorage.getToken()).toBe('demo-token');
+  });
+
+  it('stays logged out when the demo login is rejected', async () => {
+    authApi.demoLogin.mockImplementation(() => Promise.reject(new Error('Demo login is disabled on this server')));
+    renderProvider();
+
+    await userEvent.click(screen.getByText('demo'));
+
+    expect(screen.getByTestId('authenticated')).toHaveTextContent('false');
+    expect(tokenStorage.getToken()).toBeNull();
   });
 
   it('stays logged out when the login is rejected', async () => {

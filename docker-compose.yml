@@ -75,6 +75,11 @@ services:
       ADMIN_NAME: ${ADMIN_NAME:-GrandVista Administrator}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@grandvista.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env (at least 8 characters)}
+      # Review demo login - OFF unless DEMO_MODE_ENABLED=true in .env (see DEMO_LOGIN_IMPLEMENTATION_REPORT.md)
+      DEMO_MODE_ENABLED: ${DEMO_MODE_ENABLED:-false}
+      DEMO_GUEST1_NAME: ${DEMO_GUEST1_NAME:-Ramesh}
+      DEMO_GUEST2_NAME: ${DEMO_GUEST2_NAME:-Demo Guest 2}
+      DEMO_MANAGER_NAME: ${DEMO_MANAGER_NAME:-GrandVista Manager}
     depends_on:
       postgres: { condition: service_healthy }
       eureka-server: { condition: service_healthy }

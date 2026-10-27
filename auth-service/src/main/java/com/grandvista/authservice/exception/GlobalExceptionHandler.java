@@ -1,5 +1,6 @@
 package com.grandvista.authservice.exception;
 
+import com.grandvista.authservice.demo.DemoModeDisabledException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +51,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException ex, HttpServletRequest request) {
         return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(DemoModeDisabledException.class)
+    public ResponseEntity<ApiError> handleDemoDisabled(DemoModeDisabledException ex, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage(), request);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

@@ -31,13 +31,19 @@ export function AuthProvider({ children }) {
     }
   }, [navigate]);
 
-  const login = useCallback(async (email, password) => {
-    const response = await authApi.login({ email, password });
+  const startSession = useCallback((response) => {
     tokenStorage.save(response.accessToken, response.user);
     setSession({ token: response.accessToken, user: response.user });
     setNotice(null);
     return response.user;
   }, []);
+
+  const login = useCallback(async (email, password) => startSession(await authApi.login({ email, password })),
+    [startSession]);
+
+  // Review demo accounts: the server decides whether this is allowed; the UI never holds a password or token.
+  const demoLogin = useCallback(async (accountId) => startSession(await authApi.demoLogin(accountId)),
+    [startSession]);
 
   // Any 401 on an authenticated request (expired / tampered token) ends the session.
   useEffect(() => {
@@ -61,10 +67,11 @@ export function AuthProvider({ children }) {
     isAdmin: session.user?.role === 'ROLE_ADMIN',
     isGuest: session.user?.role === 'ROLE_USER',
     login,
+    demoLogin,
     logout,
     notice,
     clearNotice: () => setNotice(null),
-  }), [session, login, logout, notice]);
+  }), [session, login, demoLogin, logout, notice]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

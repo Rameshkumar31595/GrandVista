@@ -37,6 +37,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // ---- public ----
                         .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login").permitAll()
+                        // review demo login: the service itself answers 403 unless DEMO_MODE_ENABLED=true
+                        .requestMatchers(HttpMethod.GET, "/auth/demo/accounts").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/demo/login").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/error").permitAll()

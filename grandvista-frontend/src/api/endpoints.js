@@ -6,6 +6,8 @@ import { apiRequest } from './client';
 export const authApi = {
   register: (data) => apiRequest('/auth/register', { method: 'POST', body: data }),
   login: (data) => apiRequest('/auth/login', { method: 'POST', body: data }),
+  demoAccounts: () => apiRequest('/auth/demo/accounts'),
+  demoLogin: (accountId) => apiRequest('/auth/demo/login', { method: 'POST', body: { accountId } }),
   me: () => apiRequest('/auth/me'),
   listUsers: () => apiRequest('/auth/users'),
   changeRole: (userId, role) => apiRequest(`/auth/users/${userId}/role`, { method: 'PATCH', body: { role } }),

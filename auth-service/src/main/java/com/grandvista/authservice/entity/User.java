@@ -80,6 +80,10 @@ public class User {
         return password;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public Role getRole() {
         return role;
     }

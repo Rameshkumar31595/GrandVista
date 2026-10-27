@@ -148,6 +148,17 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(201, 162, 39
 /* ---------- auth ---------- */
 .auth-page { display: flex; justify-content: center; padding: 3rem 1rem; }
 .auth-card { width: min(430px, 100%); display: flex; flex-direction: column; gap: 0.8rem; }
+.auth-card-wide { width: min(760px, 100%); }
+.auth-form { display: flex; flex-direction: column; gap: 0.8rem; }
+.auth-tabs { display: grid; grid-template-columns: 1fr 1fr; background: #f3f1ea; border-radius: 8px; padding: 3px; gap: 3px; }
+.auth-tabs button { font: inherit; font-weight: 600; border: 0; background: transparent; color: var(--muted); padding: 0.5rem; border-radius: 6px; cursor: pointer; }
+.auth-tabs button.active { background: #fff; color: var(--navy); box-shadow: var(--shadow); }
+.demo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem; margin-top: 0.6rem; }
+.demo-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; background: #fbfaf6; }
+.demo-card p { flex: 1; margin: 0; }
+.demo-card-head { display: flex; flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+.demo-card-head h3 { margin: 0; font-size: 1.05rem; }
+.demo-card-head .role-chip { margin-left: 0; }
 
 /* ---------- bookings / payment ---------- */
 .summary-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }

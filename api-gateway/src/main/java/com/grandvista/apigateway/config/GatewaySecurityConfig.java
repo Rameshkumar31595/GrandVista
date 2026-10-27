@@ -50,6 +50,9 @@ public class GatewaySecurityConfig {
 
                         // ---- AUTH ----
                         .pathMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                        // review demo login: the auth service answers 403 unless DEMO_MODE_ENABLED=true
+                        .pathMatchers(HttpMethod.POST, "/api/auth/demo/login").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/auth/demo/accounts").permitAll()
                         .pathMatchers("/api/auth/users/**").hasRole("ADMIN")
                         .pathMatchers("/api/auth/**").authenticated()
 
