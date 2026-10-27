@@ -1,0 +1,35 @@
+# OPTIONAL third override: LOCAL_REVIEW mode = passwordless Demo Login for a trusted, local-only demonstration.
+# It is deliberately a separate file so shared-db mode alone keeps Demo Login OFF.
+#
+#   review on  : docker compose -f docker-compose.yml -f docker-compose.shared-db.yml -f docker-compose.local-review.yml up -d
+#   review off : docker compose -f docker-compose.yml -f docker-compose.shared-db.yml up -d      (demo forced off again)
+#   isolated + review (no shared DB): docker compose -f docker-compose.yml -f docker-compose.local-review.yml up -d
+#
+# HOW "LOCAL ONLY" IS ENFORCED: the only ports published to the host (gateway 8080, UI 5173, Eureka 9000) are re-bound to
+# 127.0.0.1 below (`!override` REPLACES the base "0.0.0.0" bindings). Auth Service itself is never published; it is reachable
+# only through the gateway or from containers on the compose network. A machine on your LAN/Wi-Fi therefore cannot even open a
+# TCP connection to the demo endpoint. CORS is NOT relied upon. Verify with:
+#   bash docs/project-completion/verification/local-review-check.sh
+#
+# What the demo accounts can do: a real ROLE_ADMIN "GrandVista Manager" (manage hotels/rooms/pricing/bookings/users). Only enable
+# this on a machine and network you trust, for the duration of the demonstration.
+
+services:
+  auth-service:
+    environment:
+      DEMO_MODE_ENABLED: "true"
+      DEMO_GUEST1_NAME: ${DEMO_GUEST1_NAME:-Ramesh}
+      DEMO_GUEST2_NAME: ${DEMO_GUEST2_NAME:-Demo Guest 2}
+      DEMO_MANAGER_NAME: ${DEMO_MANAGER_NAME:-GrandVista Manager}
+
+  api-gateway:
+    ports: !override
+      - "127.0.0.1:8080:8080"
+
+  frontend:
+    ports: !override
+      - "127.0.0.1:5173:8080"
+
+  eureka-server:
+    ports: !override
+      - "127.0.0.1:9000:9000"

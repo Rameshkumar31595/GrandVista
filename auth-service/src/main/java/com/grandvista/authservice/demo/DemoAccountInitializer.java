@@ -56,7 +56,11 @@ public class DemoAccountInitializer implements ApplicationRunner {
         for (DemoAccount account : DemoAccount.values()) {
             String name = demoLoginService.displayName(account);
             userRepository.findByEmail(account.email()).ifPresentOrElse(existing -> {
-                if (!existing.getName().equals(name)) {
+                if (existing.getRole() != account.role()) {
+                    // Collision with a row we did not create: leave it completely alone (demo login refuses it too).
+                    log.warn("Demo account {} collides with an existing {} user - left untouched, demo login for it stays unavailable",
+                            account.id(), existing.getRole());
+                } else if (!existing.getName().equals(name)) {
                     existing.setName(name);
                     userRepository.save(existing);
                 }

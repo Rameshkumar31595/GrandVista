@@ -1,0 +1,66 @@
+# OPTIONAL override: run the Docker services against the PostgreSQL server installed on Windows (host port 5433)
+# instead of the isolated "postgres" container. The base file docker-compose.yml is NOT changed.
+#
+#   shared mode  : docker compose -f docker-compose.yml -f docker-compose.shared-db.yml up -d
+#   isolated mode: docker compose up -d            (the default - this file is simply not used)
+#
+# Needs SHARED_DB_USERNAME and SHARED_DB_PASSWORD in .env (or the shell). They are separate from DB_USERNAME /
+# DB_PASSWORD, which keep belonging to the isolated container. Read docs/project-completion/SHARED_DATABASE_CONFIGURATION_REPORT.md
+# BEFORE using this file: the first start migrates two tables of the real databases (additive only).
+#
+# Safety choices made here:
+#  * the isolated postgres container is disabled (profile) and nothing depends on it
+#  * demo mode and demo seed data are forced OFF so nothing demo-related is ever written to the real databases
+#  * the four database names are the ones the services already use (grandvista_{auth,room,booking,payment}_db)
+
+x-shared-db-env: &shared-db-env
+  DB_HOST: host.docker.internal
+  DB_PORT: ${SHARED_DB_PORT:-5433}
+  DB_USERNAME: ${SHARED_DB_USERNAME:?set SHARED_DB_USERNAME in .env (the Windows PostgreSQL login)}
+  DB_PASSWORD: ${SHARED_DB_PASSWORD:?set SHARED_DB_PASSWORD in .env (the Windows PostgreSQL password)}
+
+x-host-gateway: &host-gateway
+  # Docker Desktop already resolves host.docker.internal; this makes it work on Linux engines too.
+  - "host.docker.internal:host-gateway"
+
+services:
+  postgres:
+    profiles: ["isolated-db"]          # not started in shared mode
+
+  auth-service:
+    environment:
+      <<: *shared-db-env
+      DEMO_MODE_ENABLED: "false"
+    extra_hosts: *host-gateway
+    depends_on: !override
+      eureka-server: { condition: service_healthy }
+
+  room-service:
+    environment:
+      <<: *shared-db-env
+      SEED_DEMO_DATA: "false"
+    extra_hosts: *host-gateway
+    depends_on: !override
+      eureka-server: { condition: service_healthy }
+
+  room-service-2:
+    environment:
+      <<: *shared-db-env
+      SEED_DEMO_DATA: "false"
+    extra_hosts: *host-gateway
+
+  payment-service:
+    environment:
+      <<: *shared-db-env
+    extra_hosts: *host-gateway
+    depends_on: !override
+      eureka-server: { condition: service_healthy }
+
+  booking-service:
+    environment:
+      <<: *shared-db-env
+    extra_hosts: *host-gateway
+    depends_on: !override
+      eureka-server: { condition: service_healthy }
+      room-service: { condition: service_healthy }
+      payment-service: { condition: service_healthy }
