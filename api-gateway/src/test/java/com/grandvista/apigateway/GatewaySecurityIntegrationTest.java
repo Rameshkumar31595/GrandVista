@@ -136,6 +136,17 @@ class GatewaySecurityIntegrationTest {
                 .expectStatus().isEqualTo(HttpStatus.FORBIDDEN);
     }
 
+    @Test
+    void corsPreflightAllowsTheReviewerAccessCodeHeaderForTheDemoLogin() {
+        client.options().uri("/api/auth/demo/login")
+                .header(HttpHeaders.ORIGIN, "http://localhost:5173")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "Content-Type,X-Demo-Access-Code")
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().valueEquals(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173");
+    }
+
     private static String validToken(String role) {
         return token(role, Instant.now(), Instant.now().plusSeconds(600));
     }

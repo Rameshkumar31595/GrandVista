@@ -4,6 +4,10 @@ package com.grandvista.authservice.demo;
 public class DemoModeDisabledException extends RuntimeException {
 
     public DemoModeDisabledException() {
-        super("Demo login is disabled on this server");
+        this("Demo login is disabled on this server");
+    }
+
+    public DemoModeDisabledException(String message) {
+        super(message);
     }
 }

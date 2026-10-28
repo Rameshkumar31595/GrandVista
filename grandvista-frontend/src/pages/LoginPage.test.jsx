@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api/client';
 import { authApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { renderRoute } from '../test/helpers';
@@ -146,6 +147,82 @@ describe('LoginPage', () => {
 
       expect(await screen.findByRole('alert')).toHaveTextContent('Demo login is disabled on this server');
       expect(screen.getByRole('button', { name: 'Continue as Ramesh' })).toBeEnabled();
+    });
+  });
+
+  describe('demo login on a public deployment (reviewer access code)', () => {
+    const codeRequired = () => Promise.reject(new ApiError(401, 'Reviewer access code required'));
+
+    beforeEach(() => sessionStorage.clear());
+
+    it('offers the Demo Login tab but asks for the access code before showing any account', async () => {
+      authApi.demoAccounts.mockImplementation(codeRequired);
+      renderRoute(<LoginPage />, { path: '/login' });
+
+      await userEvent.click(await screen.findByRole('tab', { name: 'Demo Login' }));
+
+      expect(screen.getByLabelText('Reviewer access code')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Continue as GrandVista Manager' })).not.toBeInTheDocument();
+      expect(demoLogin).not.toHaveBeenCalled();
+    });
+
+    it('unlocks the three cards with the right code and sends it with the demo login', async () => {
+      authApi.demoAccounts.mockImplementation((code) => (code === 'review-code-123' ? Promise.resolve(DEMO_ACCOUNTS)
+        : codeRequired()));
+      demoLogin.mockResolvedValue({ role: 'ROLE_ADMIN' });
+      renderRoute(<LoginPage />, { path: '/login' });
+
+      await userEvent.click(await screen.findByRole('tab', { name: 'Demo Login' }));
+      await userEvent.type(screen.getByLabelText('Reviewer access code'), 'review-code-123');
+      await userEvent.click(screen.getByRole('button', { name: 'Unlock demo accounts' }));
+      const manager = await screen.findByRole('button', { name: 'Continue as GrandVista Manager' });
+      expect(screen.getByRole('button', { name: 'Continue as Ramesh' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Continue as Demo Guest 2' })).toBeInTheDocument();
+      await userEvent.click(manager);
+
+      expect(demoLogin).toHaveBeenCalledWith('manager', 'review-code-123');
+      expect(sessionStorage.getItem('grandvista.demoAccessCode')).toBe('review-code-123');
+      await waitFor(() => expect(screen.getByTestId('path')).toHaveTextContent('/admin'));
+    });
+
+    it('rejects a wrong code and keeps the accounts hidden', async () => {
+      authApi.demoAccounts.mockImplementation(codeRequired);
+      renderRoute(<LoginPage />, { path: '/login' });
+
+      await userEvent.click(await screen.findByRole('tab', { name: 'Demo Login' }));
+      await userEvent.type(screen.getByLabelText('Reviewer access code'), 'wrong-code-0000');
+      await userEvent.click(screen.getByRole('button', { name: 'Unlock demo accounts' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('That reviewer access code was not accepted.');
+      expect(screen.queryByRole('button', { name: 'Continue as Ramesh' })).not.toBeInTheDocument();
+      expect(sessionStorage.getItem('grandvista.demoAccessCode')).toBeNull();
+    });
+
+    it('shows the rate-limit message from the server', async () => {
+      authApi.demoAccounts.mockImplementationOnce(codeRequired)
+        .mockImplementationOnce(() => Promise.reject(new ApiError(429, 'Too many attempts. Please wait and try again later.')));
+      renderRoute(<LoginPage />, { path: '/login' });
+
+      await userEvent.click(await screen.findByRole('tab', { name: 'Demo Login' }));
+      await userEvent.type(screen.getByLabelText('Reviewer access code'), 'another-guess-1');
+      await userEvent.click(screen.getByRole('button', { name: 'Unlock demo accounts' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Too many attempts');
+    });
+
+    it('asks for the code again when the server revokes it', async () => {
+      sessionStorage.setItem('grandvista.demoAccessCode', 'old-code-12345');
+      authApi.demoAccounts.mockResolvedValue(DEMO_ACCOUNTS);
+      demoLogin.mockRejectedValue(new ApiError(401, 'Reviewer access code not accepted'));
+      renderRoute(<LoginPage />, { path: '/login' });
+
+      await userEvent.click(await screen.findByRole('tab', { name: 'Demo Login' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Continue as Ramesh' }));
+
+      expect(authApi.demoAccounts).toHaveBeenCalledWith('old-code-12345');
+      expect(demoLogin).toHaveBeenCalledWith('ramesh', 'old-code-12345');
+      expect(await screen.findByLabelText('Reviewer access code')).toBeInTheDocument();
+      expect(sessionStorage.getItem('grandvista.demoAccessCode')).toBeNull();
     });
   });
 });

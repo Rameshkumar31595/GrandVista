@@ -105,7 +105,8 @@ public class GatewaySecurityConfig {
         CorsConfiguration cors = new CorsConfiguration();
         cors.setAllowedOrigins(properties.cors().originList());
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Request-Id"));
+        // X-Demo-Access-Code: reviewer access code for the demo login on public deployments (checked by auth-service)
+        cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Request-Id", "X-Demo-Access-Code"));
         cors.setExposedHeaders(List.of("X-Request-Id"));
         cors.setAllowCredentials(false);
         cors.setMaxAge(Duration.ofHours(1));
