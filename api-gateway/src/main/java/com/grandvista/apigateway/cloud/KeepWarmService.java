@@ -9,6 +9,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.cloud.gateway.support.NotFoundException;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
@@ -19,6 +20,7 @@ import reactor.core.publisher.Mono;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -42,6 +44,8 @@ public class KeepWarmService implements WebFilter, SmartLifecycle {
     private final WebClient webClient;
     private final Clock clock;
     private final AtomicReference<Instant> lastUserRequest;
+    private final AtomicReference<Instant> lastWakeAttempt = new AtomicReference<>(Instant.MIN);
+    private final AtomicBoolean wakeRoundInFlight = new AtomicBoolean(false);
     private volatile Disposable schedule;
 
     @Autowired // the package-private constructor lets tests inject a WebClient and a Clock
@@ -63,7 +67,39 @@ public class KeepWarmService implements WebFilter, SmartLifecycle {
         if (exchange.getRequest().getPath().value().startsWith("/api/")) {
             lastUserRequest.set(clock.instant());
         }
-        return chain.filter(exchange);
+        return chain.filter(exchange).doOnError(ex -> {
+            if (exchange.getRequest().getPath().value().startsWith("/api/") && isNoInstanceError(ex)) {
+                wakeServicesOnDemand();
+            }
+        });
+    }
+
+    /**
+     * The only trigger: the load balancer found no instance for the route (it throws NotFoundException before the
+     * request is sent anywhere). A generic 503 - for example one a backend itself returned - does not qualify.
+     */
+    static boolean isNoInstanceError(Throwable ex) {
+        return ex instanceof NotFoundException;
+    }
+
+    /**
+     * A request found no instance (service asleep and evicted from Eureka). Send one round of plain health pings so
+     * the sleeping services start waking now instead of waiting for the next tick. Bounded twice: at most one round
+     * per {@code wakeCooldown}, and never a second round while the previous one (up to 90s per ping) is still running.
+     * The failed request itself is never replayed and the pings carry no client headers.
+     */
+    void wakeServicesOnDemand() {
+        Instant now = clock.instant();
+        Instant last = lastWakeAttempt.get();
+        if (Duration.between(last, now).compareTo(properties.wakeCooldown()) < 0
+                || !wakeRoundInFlight.compareAndSet(false, true)) {
+            return;
+        }
+        lastWakeAttempt.set(now);
+        log.info("No service instance available for a request: sending health pings to wake the services");
+        pingAll()
+                .doFinally(signal -> wakeRoundInFlight.set(false))
+                .subscribe(null, ex -> log.info("on-demand wake ping failed ({})", ex.getClass().getSimpleName()));
     }
 
     boolean usersActive() {

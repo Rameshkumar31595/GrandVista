@@ -13,11 +13,13 @@ import java.util.List;
  * @param urls         comma separated health URLs of Eureka and the business services; empty = feature off
  * @param interval     how often to ping while users are active (must stay below the host's 15-minute idle limit)
  * @param activeWindow pings continue this long after the last real request through the gateway, then stop
+ * @param wakeCooldown minimum time between two on-demand wake rounds triggered by "no instance" request failures
  */
 @ConfigurationProperties(prefix = "grandvista.keep-warm")
 public record KeepWarmProperties(@DefaultValue("") String urls,
                                  @DefaultValue("10m") Duration interval,
-                                 @DefaultValue("20m") Duration activeWindow) {
+                                 @DefaultValue("20m") Duration activeWindow,
+                                 @DefaultValue("60s") Duration wakeCooldown) {
 
     public List<String> urlList() {
         return Arrays.stream(urls.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
