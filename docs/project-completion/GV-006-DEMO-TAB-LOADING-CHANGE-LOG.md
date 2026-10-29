@@ -21,3 +21,11 @@ New: tab visible and form usable while pending; pending -> cards; pending -> 401
 
 ## Revert
 `git apply -R GV-006-demo-tab-loading.patch` or revert the commit. A live revert needs a redeploy of the web service.
+
+## Deployment and live checks (2026-10-29)
+- Merged as PR #4, main 97fea13. Render did not auto-deploy the web service; "Deploy latest commit" was run manually at 17:34 IST (web service only, no settings changed). Live bundle: assets/index-Ci2jZ7U3.js (previously index-BXDqu4Yj.js), contains the new waiting text.
+- Live mobile check (headless Chrome, ~17:45 IST): Demo Login tab is visible on first paint; after clicking, the waiting message shows while the request is pending; after 55.6 s the request returned 503 and the page showed the "cannot be reached / Try again" panel with the tab kept.
+- What this fixes: tab visibility and honest waiting text only. It does not make the demo accounts available.
+- Observed cause of the unavailable demo at that time: idle services asleep in sequence (Auth shut down 17:00 IST; Eureka also asleep, so Auth's registration failed with 502 and the gateway had no Auth instance, returning an instant 503). After direct health GETs woke Auth and Eureka, /api/auth/demo/accounts reached Auth (401 reviewer gate, 0.6 s) at 17:50 IST.
+- Not changed: gateway, backend, config, DB, KeepWarmService (GV-005 is separate and unpublished).
+- Revert: revert PR #4 (commit 97fea13) and redeploy the web service; env values are untouched by this change.
