@@ -3,11 +3,15 @@ import { apiRequest } from './client';
 // Every backend call used by the UI, grouped by microservice. Paths are relative to VITE_API_BASE_URL
 // (the API Gateway), which routes /auth, /rooms, /hotels, /pricing-rules, /bookings and /payments.
 
+// Public deployments protect the demo login with a reviewer access code, typed in by the reviewer (never built in).
+const demoHeaders = (accessCode) => (accessCode ? { 'X-Demo-Access-Code': accessCode } : undefined);
+
 export const authApi = {
   register: (data) => apiRequest('/auth/register', { method: 'POST', body: data }),
   login: (data) => apiRequest('/auth/login', { method: 'POST', body: data }),
-  demoAccounts: () => apiRequest('/auth/demo/accounts'),
-  demoLogin: (accountId) => apiRequest('/auth/demo/login', { method: 'POST', body: { accountId } }),
+  demoAccounts: (accessCode) => apiRequest('/auth/demo/accounts', { headers: demoHeaders(accessCode) }),
+  demoLogin: (accountId, accessCode) => apiRequest('/auth/demo/login',
+    { method: 'POST', body: { accountId }, headers: demoHeaders(accessCode) }),
   me: () => apiRequest('/auth/me'),
   listUsers: () => apiRequest('/auth/users'),
   changeRole: (userId, role) => apiRequest(`/auth/users/${userId}/role`, { method: 'PATCH', body: { role } }),

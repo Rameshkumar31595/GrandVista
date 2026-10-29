@@ -24,7 +24,7 @@ export function setUnauthorizedHandler(handler) {
  * Reusable fetch wrapper: adds the Bearer token, serialises JSON, and converts the backend's
  * {timestamp, status, error, message, path, validationErrors} body into an ApiError.
  */
-export async function apiRequest(path, { method = 'GET', body, query } = {}) {
+export async function apiRequest(path, { method = 'GET', body, query, headers: extraHeaders } = {}) {
   const url = new URL(API_BASE_URL + path);
   Object.entries(query || {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
@@ -36,7 +36,7 @@ export async function apiRequest(path, { method = 'GET', body, query } = {}) {
   // old session still sits in storage (second tab, mistyped password) would come back as a 401 that is mistaken for
   // "your session expired" and would log the user out everywhere.
   const token = PUBLIC_AUTH_PATHS.has(path) ? null : tokenStorage.getToken();
-  const headers = { Accept: 'application/json' };
+  const headers = { Accept: 'application/json', ...extraHeaders };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
 

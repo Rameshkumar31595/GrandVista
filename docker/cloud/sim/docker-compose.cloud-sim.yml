@@ -1,0 +1,164 @@
+# LOCAL SIMULATION of the Render deployment (render.yaml) - for verification before/without the real cloud.
+#
+#   bash docker/cloud/sim/run-cloud-sim.sh up        # generates throw-away secrets, builds, starts, waits
+#   bash docker/cloud/sim/run-cloud-sim.sh down      # stops and removes ONLY this project's containers
+#
+# Same cloud images (docker/cloud/service.Dockerfile), same "cloud" Spring profile, same entrypoint, 512 MB memory limit
+# per service. Differences from Render: plain HTTP between containers instead of public HTTPS (PUBLIC_* variables), and
+# a throw-away PostgreSQL kept in memory (tmpfs) - no volume is created, nothing from the local stacks is touched.
+# Separate compose project ("grandvista-cloudsim"); only loopback ports 18080 (gateway), 18173 (UI), 19000 (Eureka).
+
+name: grandvista-cloudsim
+
+x-sim-limits: &sim-limits
+  mem_limit: 512m
+  cpus: ${SIM_CPUS:-0.5}
+  networks: [cloudsim]
+
+x-cloud-build: &cloud-build
+  context: ../../..
+  dockerfile: docker/cloud/service.Dockerfile
+
+x-cloud-env: &cloud-env
+  SPRING_PROFILES_ACTIVE: cloud
+  PORT: "10000"
+  PUBLIC_TLS: "false"
+  PUBLIC_PLAIN_HTTP: "true"
+  PUBLIC_PORT: "10000"
+  PUBLIC_SCHEME: http
+  JWT_SECRET: ${SIM_JWT_SECRET:?run via run-cloud-sim.sh}
+  INTERNAL_API_KEY: ${SIM_INTERNAL_API_KEY:?run via run-cloud-sim.sh}
+  EUREKA_USERNAME: eureka
+  EUREKA_PASSWORD: ${SIM_EUREKA_PASSWORD:?run via run-cloud-sim.sh}
+  EUREKA_PUBLIC_URL: http://eureka:10000
+
+x-db-env: &db-env
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_USERNAME: gv_owner
+  DB_PASSWORD: ${SIM_DB_PASSWORD:?run via run-cloud-sim.sh}
+  DB_ADMIN_DATABASE: grandvista_cloud
+
+x-health: &health
+  interval: 10s
+  timeout: 5s
+  retries: 40
+  start_period: 90s
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: sim_super
+      POSTGRES_PASSWORD: ${SIM_SUPER_PASSWORD:?run via run-cloud-sim.sh}
+      SIM_OWNER_USER: gv_owner
+      SIM_OWNER_PASSWORD: ${SIM_DB_PASSWORD:?run via run-cloud-sim.sh}
+    tmpfs: [/var/lib/postgresql]
+    volumes:
+      - ./init-owner.sh:/docker-entrypoint-initdb.d/10-init-owner.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sim_super -d postgres"]
+      interval: 3s
+      retries: 30
+    networks: [cloudsim]
+
+  eureka:
+    <<: *sim-limits
+    build: { <<: *cloud-build, args: { SERVICE_DIR: eureka-server } }
+    image: grandvista-cloudsim/eureka-server
+    environment:
+      <<: *cloud-env
+      PUBLIC_HOSTNAME: eureka
+    ports: ["127.0.0.1:19000:10000"]
+    healthcheck: { <<: *health, test: ["CMD-SHELL", "curl -fs http://localhost:10000/actuator/health | grep -q UP"] }
+
+  auth:
+    <<: *sim-limits
+    build: { <<: *cloud-build, args: { SERVICE_DIR: auth-service } }
+    image: grandvista-cloudsim/auth-service
+    environment:
+      <<: [*cloud-env, *db-env]
+      PUBLIC_HOSTNAME: auth
+      DB_BOOTSTRAP_DATABASE: grandvista_auth_db
+      ADMIN_NAME: GrandVista Cloud Administrator
+      ADMIN_EMAIL: admin@cloud.grandvista.example
+      ADMIN_PASSWORD: ${SIM_ADMIN_PASSWORD:?run via run-cloud-sim.sh}
+      DEMO_MODE_ENABLED: ${SIM_DEMO_MODE_ENABLED:-true}
+      DEMO_REVIEWER_ACCESS_CODE: ${SIM_DEMO_CODE:-}
+      DEMO_ACCESS_EXPIRES_AT: ${SIM_DEMO_EXPIRES_AT:-}
+    depends_on: { postgres: { condition: service_healthy }, eureka: { condition: service_healthy } }
+    healthcheck: { <<: *health, test: ["CMD-SHELL", "curl -fs http://localhost:10000/actuator/health | grep -q UP"] }
+
+  room:
+    <<: *sim-limits
+    build: { <<: *cloud-build, args: { SERVICE_DIR: room-service } }
+    image: grandvista-cloudsim/room-service
+    environment:
+      <<: [*cloud-env, *db-env]
+      PUBLIC_HOSTNAME: room
+      DB_BOOTSTRAP_DATABASE: grandvista_room_db
+      SEED_DEMO_DATA: "true"
+    depends_on: { postgres: { condition: service_healthy }, eureka: { condition: service_healthy } }
+    healthcheck: { <<: *health, test: ["CMD-SHELL", "curl -fs http://localhost:10000/actuator/health | grep -q UP"] }
+
+  room2:
+    <<: *sim-limits
+    profiles: ["lb-demo"]
+    image: grandvista-cloudsim/room-service
+    environment:
+      <<: [*cloud-env, *db-env]
+      PUBLIC_HOSTNAME: room2
+      DB_BOOTSTRAP_DATABASE: grandvista_room_db
+      SEED_DEMO_DATA: "false"
+    depends_on: { room: { condition: service_healthy } }
+    healthcheck: { <<: *health, test: ["CMD-SHELL", "curl -fs http://localhost:10000/actuator/health | grep -q UP"] }
+
+  payment:
+    <<: *sim-limits
+    build: { <<: *cloud-build, args: { SERVICE_DIR: payment-service } }
+    image: grandvista-cloudsim/payment-service
+    environment:
+      <<: [*cloud-env, *db-env]
+      PUBLIC_HOSTNAME: payment
+      DB_BOOTSTRAP_DATABASE: grandvista_payment_db
+    depends_on: { postgres: { condition: service_healthy }, eureka: { condition: service_healthy } }
+    healthcheck: { <<: *health, test: ["CMD-SHELL", "curl -fs http://localhost:10000/actuator/health | grep -q UP"] }
+
+  booking:
+    <<: *sim-limits
+    build: { <<: *cloud-build, args: { SERVICE_DIR: booking-service } }
+    image: grandvista-cloudsim/booking-service
+    environment:
+      <<: [*cloud-env, *db-env]
+      PUBLIC_HOSTNAME: booking
+      DB_BOOTSTRAP_DATABASE: grandvista_booking_db
+    depends_on: { postgres: { condition: service_healthy }, eureka: { condition: service_healthy } }
+    healthcheck: { <<: *health, test: ["CMD-SHELL", "curl -fs http://localhost:10000/actuator/health | grep -q UP"] }
+
+  gateway:
+    <<: *sim-limits
+    build: { <<: *cloud-build, args: { SERVICE_DIR: api-gateway } }
+    image: grandvista-cloudsim/api-gateway
+    environment:
+      <<: *cloud-env
+      PUBLIC_HOSTNAME: gateway
+      CORS_ALLOWED_ORIGINS: http://127.0.0.1:18173
+      AUTH_PUBLIC_URL: http://auth:10000
+      ROOM_PUBLIC_URL: http://room:10000
+      BOOKING_PUBLIC_URL: http://booking:10000
+      PAYMENT_PUBLIC_URL: http://payment:10000
+    ports: ["127.0.0.1:18080:10000"]
+    depends_on: { eureka: { condition: service_healthy } }
+    healthcheck: { <<: *health, test: ["CMD-SHELL", "curl -fs http://localhost:10000/actuator/health | grep -q UP"] }
+
+  web:
+    build:
+      context: ../../..
+      dockerfile: docker/frontend.Dockerfile
+      args: { VITE_API_BASE_URL: "http://127.0.0.1:18080/api" }
+    image: grandvista-cloudsim/frontend
+    ports: ["127.0.0.1:18173:8080"]
+    networks: [cloudsim]
+
+networks:
+  cloudsim:

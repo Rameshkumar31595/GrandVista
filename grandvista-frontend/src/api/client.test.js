@@ -47,6 +47,18 @@ describe('apiRequest', () => {
     expect([...url.searchParams.keys()]).toEqual(['city', 'roomType']);
   });
 
+  it('adds extra request headers such as the reviewer access code, without a stored token on demo paths', async () => {
+    tokenStorage.save('stale-token', { id: 1 });
+    fetch.mockResolvedValue(reply(200, []));
+
+    await apiRequest('/auth/demo/accounts', { headers: { 'X-Demo-Access-Code': 'review-code-123' } });
+
+    const [, options] = fetch.mock.calls[0];
+    expect(options.headers['X-Demo-Access-Code']).toBe('review-code-123');
+    expect(options.headers.Accept).toBe('application/json');
+    expect(options.headers.Authorization).toBeUndefined();
+  });
+
   it('returns null for 204 responses', async () => {
     fetch.mockResolvedValue({ ok: true, status: 204 });
     expect(await apiRequest('/rooms/1', { method: 'DELETE' })).toBeNull();

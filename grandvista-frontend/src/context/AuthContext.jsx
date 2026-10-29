@@ -42,8 +42,9 @@ export function AuthProvider({ children }) {
     [startSession]);
 
   // Review demo accounts: the server decides whether this is allowed; the UI never holds a password or token.
-  const demoLogin = useCallback(async (accountId) => startSession(await authApi.demoLogin(accountId)),
-    [startSession]);
+  // On a public deployment the reviewer's access code (typed in on the login page) is passed along.
+  const demoLogin = useCallback(async (accountId, accessCode) => startSession(
+    await (accessCode ? authApi.demoLogin(accountId, accessCode) : authApi.demoLogin(accountId))), [startSession]);
 
   // Any 401 on an authenticated request (expired / tampered token) ends the session.
   useEffect(() => {

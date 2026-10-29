@@ -24,9 +24,11 @@ public class InstanceIdFilter extends OncePerRequestFilter {
 
     private final String instanceId;
 
+    /** {@code grandvista.instance-label} is set only by the cloud profile, where every instance listens on the same port. */
     public InstanceIdFilter(@Value("${spring.application.name}") String applicationName,
-                            @Value("${server.port}") String port) {
-        this.instanceId = applicationName + ":" + port;
+                            @Value("${server.port}") String port,
+                            @Value("${grandvista.instance-label:}") String label) {
+        this.instanceId = label.isBlank() ? applicationName + ":" + port : label;
     }
 
     @Override

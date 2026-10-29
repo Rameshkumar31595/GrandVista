@@ -1,0 +1,307 @@
+# =====================================================================================================================
+# GrandVista Hospitality - Render Blueprint (cloud deployment, FREE instance types only)
+#
+# Read docs/project-completion/CLOUD_DEPLOYMENT_USER_GUIDE.md first. Summary:
+#   Render dashboard -> New -> Blueprint -> pick this repository + branch -> fill in the 2 prompted secrets -> Apply.
+#
+# Every resource below is plan "free" (web services 512 MB / 0.1 CPU, sleep after 15 idle minutes; one free Postgres,
+# 1 GB, expires 30 days after creation). Nothing here is billable; do NOT change a plan in the dashboard.
+#
+# Architecture is the same as locally - separate Eureka, API Gateway, auth/room/booking/payment services and four
+# logical databases - with one forced difference: free web services cannot RECEIVE private-network traffic, so the
+# services reach each other through their public HTTPS names (registered in Eureka, which is password protected), and
+# the /internal/** endpoints stay protected by the internal API key exactly as before.
+#
+# This file is used only by Render. Local runs (STS, docker-compose*.yml) never read it.
+# =====================================================================================================================
+
+envVarGroups:
+  - name: grandvista-shared
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: cloud
+      # Base64 256-bit HMAC key shared by auth (signs) and gateway/services (verify)
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_MINUTES
+        value: "60"
+      # booking -> room/payment /internal/** endpoints
+      - key: INTERNAL_API_KEY
+        generateValue: true
+      # HTTP Basic credentials of the public Eureka registry
+      - key: EUREKA_USERNAME
+        value: eureka
+      - key: EUREKA_PASSWORD
+        generateValue: true
+
+databases:
+  - name: grandvista-db
+    plan: free
+    region: singapore
+    # the instance's own default database; the four service databases are created next to it on first start
+    databaseName: grandvista_cloud
+    user: grandvista_owner
+
+services:
+  # ------------------------------------------------------------------------------------------------ Eureka (9000 locally)
+  - type: web
+    name: grandvista-eureka
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./docker/cloud/service.Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    buildFilter:
+      paths: [eureka-server/**, docker/cloud/**]
+    envVars:
+      - key: SERVICE_DIR
+        value: eureka-server
+      - fromGroup: grandvista-shared
+
+  # ------------------------------------------------------------------------------------------------ Auth (8081 locally)
+  - type: web
+    name: grandvista-auth
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./docker/cloud/service.Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    buildFilter:
+      paths: [auth-service/**, docker/cloud/**]
+    envVars:
+      - key: SERVICE_DIR
+        value: auth-service
+      - fromGroup: grandvista-shared
+      - key: EUREKA_PUBLIC_URL
+        fromService: { type: web, name: grandvista-eureka, envVarKey: RENDER_EXTERNAL_URL }
+      - key: DB_HOST
+        fromDatabase: { name: grandvista-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: grandvista-db, property: port }
+      - key: DB_USERNAME
+        fromDatabase: { name: grandvista-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: grandvista-db, property: password }
+      - key: DB_ADMIN_DATABASE
+        fromDatabase: { name: grandvista-db, property: database }
+      - key: DB_BOOTSTRAP_DATABASE
+        value: grandvista_auth_db
+      # dedicated cloud administrator (no real data); the password is typed in once at Blueprint creation
+      - key: ADMIN_NAME
+        value: GrandVista Cloud Administrator
+      - key: ADMIN_EMAIL
+        value: admin@cloud.grandvista.example
+      - key: ADMIN_PASSWORD
+        sync: false
+      # Demo Login for the review: Ramesh / Demo Guest 2 / GrandVista Manager, behind the reviewer access code.
+      # Set DEMO_MODE_ENABLED=false in the dashboard to switch it off (no rebuild needed).
+      - key: DEMO_MODE_ENABLED
+        value: "true"
+      - key: DEMO_REVIEWER_ACCESS_CODE
+        sync: false
+      - key: DEMO_GUEST1_NAME
+        value: Ramesh
+      - key: DEMO_GUEST2_NAME
+        value: Demo Guest 2
+      - key: DEMO_MANAGER_NAME
+        value: GrandVista Manager
+
+  # ------------------------------------------------------------------------------------------------ Room (8082 locally)
+  - type: web
+    name: grandvista-room
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./docker/cloud/service.Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    buildFilter:
+      paths: [room-service/**, docker/cloud/**]
+    envVars:
+      - key: SERVICE_DIR
+        value: room-service
+      - fromGroup: grandvista-shared
+      - key: EUREKA_PUBLIC_URL
+        fromService: { type: web, name: grandvista-eureka, envVarKey: RENDER_EXTERNAL_URL }
+      - key: DB_HOST
+        fromDatabase: { name: grandvista-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: grandvista-db, property: port }
+      - key: DB_USERNAME
+        fromDatabase: { name: grandvista-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: grandvista-db, property: password }
+      - key: DB_ADMIN_DATABASE
+        fromDatabase: { name: grandvista-db, property: database }
+      - key: DB_BOOTSTRAP_DATABASE
+        value: grandvista_room_db
+      - key: HOLD_MINUTES
+        value: "15"
+      # synthetic hotels/rooms/pricing rules, only written when the room database is empty
+      - key: SEED_DEMO_DATA
+        value: "true"
+
+  # ------------------------------------------------------------------------------------------------ Payment (8084 locally)
+  - type: web
+    name: grandvista-payment
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./docker/cloud/service.Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    buildFilter:
+      paths: [payment-service/**, docker/cloud/**]
+    envVars:
+      - key: SERVICE_DIR
+        value: payment-service
+      - fromGroup: grandvista-shared
+      - key: EUREKA_PUBLIC_URL
+        fromService: { type: web, name: grandvista-eureka, envVarKey: RENDER_EXTERNAL_URL }
+      - key: DB_HOST
+        fromDatabase: { name: grandvista-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: grandvista-db, property: port }
+      - key: DB_USERNAME
+        fromDatabase: { name: grandvista-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: grandvista-db, property: password }
+      - key: DB_ADMIN_DATABASE
+        fromDatabase: { name: grandvista-db, property: database }
+      - key: DB_BOOTSTRAP_DATABASE
+        value: grandvista_payment_db
+      # simulated gateway only - no real payment provider is ever contacted
+      - key: PAYMENT_MAX_AMOUNT
+        value: "500000"
+
+  # ------------------------------------------------------------------------------------------------ Booking (8083 locally)
+  - type: web
+    name: grandvista-booking
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./docker/cloud/service.Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    buildFilter:
+      paths: [booking-service/**, docker/cloud/**]
+    envVars:
+      - key: SERVICE_DIR
+        value: booking-service
+      - fromGroup: grandvista-shared
+      - key: EUREKA_PUBLIC_URL
+        fromService: { type: web, name: grandvista-eureka, envVarKey: RENDER_EXTERNAL_URL }
+      - key: DB_HOST
+        fromDatabase: { name: grandvista-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: grandvista-db, property: port }
+      - key: DB_USERNAME
+        fromDatabase: { name: grandvista-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: grandvista-db, property: password }
+      - key: DB_ADMIN_DATABASE
+        fromDatabase: { name: grandvista-db, property: database }
+      - key: DB_BOOTSTRAP_DATABASE
+        value: grandvista_booking_db
+
+  # ------------------------------------------------------------------------------------------------ API Gateway (8080 locally)
+  - type: web
+    name: grandvista-gateway
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./docker/cloud/service.Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    buildFilter:
+      paths: [api-gateway/**, docker/cloud/**]
+    envVars:
+      - key: SERVICE_DIR
+        value: api-gateway
+      - fromGroup: grandvista-shared
+      - key: EUREKA_PUBLIC_URL
+        fromService: { type: web, name: grandvista-eureka, envVarKey: RENDER_EXTERNAL_URL }
+      # the only browser origin allowed by CORS: the static frontend below
+      - key: CORS_ALLOWED_ORIGINS
+        fromService: { type: web, name: grandvista-web, envVarKey: RENDER_EXTERNAL_URL }
+      # keep-warm targets (pinged only while users are active, see KeepWarmService)
+      - key: AUTH_PUBLIC_URL
+        fromService: { type: web, name: grandvista-auth, envVarKey: RENDER_EXTERNAL_URL }
+      - key: ROOM_PUBLIC_URL
+        fromService: { type: web, name: grandvista-room, envVarKey: RENDER_EXTERNAL_URL }
+      - key: BOOKING_PUBLIC_URL
+        fromService: { type: web, name: grandvista-booking, envVarKey: RENDER_EXTERNAL_URL }
+      - key: PAYMENT_PUBLIC_URL
+        fromService: { type: web, name: grandvista-payment, envVarKey: RENDER_EXTERNAL_URL }
+
+  # ------------------------------------------------------------------------------------------------ React frontend (5173 locally)
+  # Static site: free, served from Render's CDN, never sleeps. The gateway URL is baked in at build time.
+  - type: web
+    name: grandvista-web
+    runtime: static
+    buildCommand: cd grandvista-frontend && npm ci && VITE_API_BASE_URL="${GATEWAY_PUBLIC_URL%/}/api" npm run build
+    staticPublishPath: ./grandvista-frontend/dist
+    buildFilter:
+      paths: [grandvista-frontend/**]
+      ignoredPaths: [grandvista-frontend/**/*.test.jsx, grandvista-frontend/**/*.test.js]
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: GATEWAY_PUBLIC_URL
+        fromService: { type: web, name: grandvista-gateway, envVarKey: RENDER_EXTERNAL_URL }
+    routes:
+      # single-page app: /my-bookings etc. after a reload fall back to index.html
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: same-origin
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+
+  # ------------------------------------------------------------------------------------------------ OPTIONAL load-balancing demo
+  # A second Room Service (one more free service: also spends free hours while awake). Uncomment, then also add
+  #   - key: ROOM2_PUBLIC_URL
+  #     fromService: { type: web, name: grandvista-room-2, envVarKey: RENDER_EXTERNAL_URL }
+  # to grandvista-gateway. Both instances register as ROOM-SERVICE under their own host names and the gateway / booking
+  # service alternate between them; the X-Instance-Id response header shows which one answered.
+  #
+  # - type: web
+  #   name: grandvista-room-2
+  #   runtime: docker
+  #   plan: free
+  #   region: singapore
+  #   dockerfilePath: ./docker/cloud/service.Dockerfile
+  #   dockerContext: .
+  #   healthCheckPath: /actuator/health
+  #   buildFilter:
+  #     paths: [room-service/**, docker/cloud/**]
+  #   envVars:
+  #     - key: SERVICE_DIR
+  #       value: room-service
+  #     - fromGroup: grandvista-shared
+  #     - key: EUREKA_PUBLIC_URL
+  #       fromService: { type: web, name: grandvista-eureka, envVarKey: RENDER_EXTERNAL_URL }
+  #     - key: DB_HOST
+  #       fromDatabase: { name: grandvista-db, property: host }
+  #     - key: DB_PORT
+  #       fromDatabase: { name: grandvista-db, property: port }
+  #     - key: DB_USERNAME
+  #       fromDatabase: { name: grandvista-db, property: user }
+  #     - key: DB_PASSWORD
+  #       fromDatabase: { name: grandvista-db, property: password }
+  #     - key: DB_ADMIN_DATABASE
+  #       fromDatabase: { name: grandvista-db, property: database }
+  #     - key: SEED_DEMO_DATA
+  #       value: "false"

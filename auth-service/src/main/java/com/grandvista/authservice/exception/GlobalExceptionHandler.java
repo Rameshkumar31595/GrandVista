@@ -1,9 +1,12 @@
 package com.grandvista.authservice.exception;
 
+import com.grandvista.authservice.demo.DemoAccessDeniedException;
+import com.grandvista.authservice.demo.DemoAccessRateLimitedException;
 import com.grandvista.authservice.demo.DemoModeDisabledException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -56,6 +59,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DemoModeDisabledException.class)
     public ResponseEntity<ApiError> handleDemoDisabled(DemoModeDisabledException ex, HttpServletRequest request) {
         return build(HttpStatus.FORBIDDEN, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(DemoAccessDeniedException.class)
+    public ResponseEntity<ApiError> handleDemoAccessDenied(DemoAccessDeniedException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(DemoAccessRateLimitedException.class)
+    public ResponseEntity<ApiError> handleDemoRateLimited(DemoAccessRateLimitedException ex, HttpServletRequest request) {
+        long seconds = Math.max(1, ex.retryAfter().toSeconds());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds))
+                .body(ApiError.of(429, HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(), ex.getMessage(),
+                        request.getRequestURI()));
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

@@ -1,0 +1,49 @@
+{
+ "summary": {
+  "passed": 8,
+  "failed": 0,
+  "total": 8
+ },
+ "results": [
+  {
+   "check": "UI Demo Login tab asks for the reviewer access code first",
+   "pass": true,
+   "detail": "GV\nGrandVista Hospitality\nRooms\nLogin\nRegister\nWelcome back\n\nSign in to book and manage your stays.\n\nNormal Login\nDemo Login\n\nThis is a public deployment: enter the reviewer access code you were given"
+  },
+  {
+   "check": "UI a wrong code is rejected and no account card appears",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "UI the right code shows the three cards: Ramesh, Demo Guest 2, GrandVista Manager",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "UI Continue as Ramesh opens /rooms",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "UI Continue as Demo Guest 2 opens /rooms",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "UI Continue as GrandVista Manager opens /admin",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "UI a new browser session (no code) is asked for the code again",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "UI no unexpected browser console errors (expected 401s of the locked demo excluded)",
+   "pass": true,
+   "detail": ""
+  }
+ ]
+}

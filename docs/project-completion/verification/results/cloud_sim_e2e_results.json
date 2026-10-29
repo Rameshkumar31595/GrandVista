@@ -1,0 +1,266 @@
+{
+ "summary": {
+  "passed": 51,
+  "failed": 0,
+  "total": 51,
+  "gateway": "http://127.0.0.1:18080",
+  "run": "b7d6c3"
+ },
+ "results": [
+  {
+   "check": "INFRA gateway is up and routes /api/hotels to room-service (via Eureka)",
+   "pass": true,
+   "detail": "200"
+  },
+  {
+   "check": "INFRA gateway /actuator/health is UP",
+   "pass": true,
+   "detail": "(200, {'groups': ['liveness', 'readiness'], 'status': 'UP'})"
+  },
+  {
+   "check": "INFRA eureka /actuator/health is UP (open for the platform health check)",
+   "pass": true,
+   "detail": "(200, {'groups': ['liveness', 'readiness'], 'status': 'UP'})"
+  },
+  {
+   "check": "SEC eureka registry refuses anonymous access (401)",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "SEC anonymous registration of a fake instance is refused (401)",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "INFRA eureka lists API-GATEWAY, AUTH, ROOM, BOOKING, PAYMENT as UP",
+   "pass": true,
+   "detail": "{'API-GATEWAY': ['UP'], 'BOOKING-SERVICE': ['UP'], 'PAYMENT-SERVICE': ['UP'], 'AUTH-SERVICE': ['UP'], 'ROOM-SERVICE': ['UP']}"
+  },
+  {
+   "check": "WEB frontend index.html is served",
+   "pass": true,
+   "detail": "200"
+  },
+  {
+   "check": "WEB SPA deep link falls back to index.html",
+   "pass": true,
+   "detail": "200"
+  },
+  {
+   "check": "WEB CORS preflight from the frontend origin allows the access-code header",
+   "pass": true,
+   "detail": "(200, 'http://127.0.0.1:18173')"
+  },
+  {
+   "check": "SEC CORS preflight from a foreign origin is refused",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "DEMO account list without the access code -> 401",
+   "pass": true,
+   "detail": "(401, {'timestamp': '2026-10-28T11:56:08.901154261Z', 'status': 401, 'error': 'Unauthorized', 'message': 'Reviewer access code required', 'path': '/auth/demo/accounts'})"
+  },
+  {
+   "check": "DEMO ramesh without access code -> 401 and no token",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "DEMO guest2 without access code -> 401 and no token",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "DEMO manager without access code -> 401 and no token",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "DEMO manager with a WRONG access code -> 401 and no token",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "DEMO account list with the access code: Ramesh, Demo Guest 2, GrandVista Manager",
+   "pass": true,
+   "detail": "(200, ['Ramesh', 'Demo Guest 2', 'GrandVista Manager'])"
+  },
+  {
+   "check": "DEMO ramesh signs in with the access code and gets ROLE_USER",
+   "pass": true,
+   "detail": "(200, \"{'accessToken': 'eyJraWQiOiJiVURiU0VNREVpcG83Y21ESFJUblJRM2lsSXhlcncxZ3BoQUNDOGhUOEtJIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIx\")"
+  },
+  {
+   "check": "DEMO guest2 signs in with the access code and gets ROLE_USER",
+   "pass": true,
+   "detail": "(200, \"{'accessToken': 'eyJraWQiOiJiVURiU0VNREVpcG83Y21ESFJUblJRM2lsSXhlcncxZ3BoQUNDOGhUOEtJIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIy\")"
+  },
+  {
+   "check": "DEMO manager signs in with the access code and gets ROLE_ADMIN",
+   "pass": true,
+   "detail": "(200, \"{'accessToken': 'eyJraWQiOiJiVURiU0VNREVpcG83Y21ESFJUblJRM2lsSXhlcncxZ3BoQUNDOGhUOEtJIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiIz\")"
+  },
+  {
+   "check": "DEMO 5 wrong codes from one client -> the 6th attempt (even with the right code) is 429",
+   "pass": true,
+   "detail": "([401, 401, 401, 401, 401], 429)"
+  },
+  {
+   "check": "AUTH normal registration -> 201",
+   "pass": true,
+   "detail": "201"
+  },
+  {
+   "check": "AUTH normal login -> 200 with a ROLE_USER JWT",
+   "pass": true,
+   "detail": "200"
+  },
+  {
+   "check": "AUTH wrong password -> 401",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "AUTH registering the reserved demo domain -> 409",
+   "pass": true,
+   "detail": "409"
+  },
+  {
+   "check": "AUTH protected endpoint without a token -> 401",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "AUTH tampered JWT signature -> 401",
+   "pass": true,
+   "detail": "401"
+  },
+  {
+   "check": "ROLE /auth/users: Ramesh (USER) 403, GrandVista Manager (ADMIN) 200",
+   "pass": true,
+   "detail": "(403, 200)"
+  },
+  {
+   "check": "ROLE /bookings: Ramesh (USER) 403, GrandVista Manager (ADMIN) 200",
+   "pass": true,
+   "detail": "(403, 200)"
+  },
+  {
+   "check": "ROLE /payments: Ramesh (USER) 403, GrandVista Manager (ADMIN) 200",
+   "pass": true,
+   "detail": "(403, 200)"
+  },
+  {
+   "check": "ROLE /pricing-rules: Ramesh (USER) 403, GrandVista Manager (ADMIN) 200",
+   "pass": true,
+   "detail": "(403, 200)"
+  },
+  {
+   "check": "ROLE /rooms/all: Ramesh (USER) 403, GrandVista Manager (ADMIN) 200",
+   "pass": true,
+   "detail": "(403, 200)"
+  },
+  {
+   "check": "SEC demo manager cannot promote a registered user to ADMIN (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "SEC a USER cannot change roles (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "BIZ hotel listing (public)",
+   "pass": true,
+   "detail": "(200, \"[{'id': 3, 'name': 'GrandVista Indiranagar Suites', 'city': 'Bengaluru', 'state'\")"
+  },
+  {
+   "check": "BIZ room search by city (Bengaluru)",
+   "pass": true,
+   "detail": "(200, \"[{'id': 9, 'hotelId': 3, 'hotelName': 'GrandVista Indiranagar Suites', 'city': '\")"
+  },
+  {
+   "check": "BIZ dynamic price quote with nightly breakdown",
+   "pass": true,
+   "detail": "(200, \"{'roomId': 9, 'checkIn': '2027-07-11', 'checkOut': '2027-07-13', 'nights': 2, 'currency': 'INR', 'basePricePerNight': 3900.0, 'baseTotal': 7800.0, 'oc\")"
+  },
+  {
+   "check": "BIZ 8 simultaneous bookings of one room/dates (two guests) -> exactly one 201, rest 409",
+   "pass": true,
+   "detail": "[409, 409, 409, 409, 409, 409, 409, 201]"
+  },
+  {
+   "check": "BIZ Ramesh creates a booking (PENDING hold)",
+   "pass": true,
+   "detail": "(201, {'bookingId': 2, 'userId': 1, 'roomId': 10, 'hotelId': 3, 'hotelName': 'GrandVista Indiranagar Suites', 'roomNumber': '102', 'roomType': 'STANDARD', 'checkIn': '2027-07-11', 'checkOut': '2027-07-13', 'nights': 2, 'numberOfGuests': 1, 'totalAmount': 7800.0, 'currency': 'INR', 'bookingStatus': '"
+  },
+  {
+   "check": "BIZ payment success -> booking CONFIRMED",
+   "pass": true,
+   "detail": "(200, \"{'booking': {'bookingId': 2, 'userId': 1, 'roomId': 10, 'hotelId': 3, 'hotelName': 'GrandVista Indiranagar Suites', 'roomNumber': '102', 'roomType': 'STANDARD', 'checkIn': '2027-07-11', 'checkOut': '2\")"
+  },
+  {
+   "check": "BIZ exactly one SUCCESS payment stored for the booking",
+   "pass": true,
+   "detail": "(200, [{'paymentId': 1, 'bookingId': 2, 'userId': 1, 'amount': 7800.0, 'currency': 'INR', 'method': 'UPI', 'status': 'SUCCESS', 'transactionReference': 'GV-PAY-20261028-D605FDF6', 'failureReason': None, 'createdAt': '2026-10-28T11:56:24.786862Z', 'refundedAt': None}])"
+  },
+  {
+   "check": "ROLE Demo Guest 2 cannot read Ramesh's booking (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "ROLE Demo Guest 2 does not see Ramesh's booking in \"my bookings\"",
+   "pass": true,
+   "detail": "(200, 0)"
+  },
+  {
+   "check": "ROLE GrandVista Manager sees the booking in the admin list",
+   "pass": true,
+   "detail": "200"
+  },
+  {
+   "check": "ROLE Demo Guest 2 cannot cancel Ramesh's booking (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "BIZ cancellation -> CANCELLED, payment REFUNDED, room available again",
+   "pass": true,
+   "detail": "(200, \"{'bookingId': 2, 'userId': 1, 'roomId': 10, 'hotelId': 3, 'hotelName': 'GrandVista Indiranagar Suites', 'roomNumber': '1\", [{'paymentId': 1, 'bookingId': 2, 'userId': 1, 'amount': 7800.0, 'currency': 'INR', 'method': 'UPI', 'status': 'REFUNDED', 'transactionReference': 'GV-PAY-20261028-D605FD"
+  },
+  {
+   "check": "BIZ simulated payment failure is reported and nothing is confirmed",
+   "pass": true,
+   "detail": "(200, \"{'booking': {'bookingId': 3, 'userId': 2, 'roomId': 10, 'hotelId': 3, 'hotelName': 'GrandVista Indiranagar Suites', 'roomNumber': '102', 'roomType': '\", 'CANCELLED')"
+  },
+  {
+   "check": "BIZ the failed attempt is stored as FAILED",
+   "pass": true,
+   "detail": "(200, [{'paymentId': 2, 'bookingId': 3, 'userId': 2, 'amount': 7800.0, 'currency': 'INR', 'method': 'CARD', 'status': 'FAILED', 'transactionReference': 'GV-PAY-20261028-946D70BE', 'failureReason': 'Payment declined by the simulated gateway (demo failure)', 'createdAt': '2026-10-28T11:56:25.525651Z',"
+  },
+  {
+   "check": "ADMIN GrandVista Manager creates a hotel (201)",
+   "pass": true,
+   "detail": "(201, \"{'id': 5, 'name': 'Cloud Test Hotel b7d6c3', 'city': 'Testpur', 'state': 'Test State', 'country': 'India', 'address': '1 Synthetic Road', 'description\")"
+  },
+  {
+   "check": "ROLE Ramesh cannot create a hotel (403)",
+   "pass": true,
+   "detail": "403"
+  },
+  {
+   "check": "ADMIN inventory summary",
+   "pass": true,
+   "detail": "(200, \"[{'hotelId': 3, 'hotelName': 'GrandVista Indiranagar Suites', 'city': 'Bengaluru', 'totalRooms': 4, \")"
+  },
+  {
+   "check": "DB bookings persist and are listed for Ramesh",
+   "pass": true,
+   "detail": "200"
+  }
+ ]
+}
