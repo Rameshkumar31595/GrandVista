@@ -86,7 +86,7 @@ describe('LoginPage', () => {
       renderRoute(<LoginPage />, { path: '/login' });
 
       await waitFor(() => expect(authApi.demoAccounts).toHaveBeenCalled());
-      expect(screen.queryByRole('tab', { name: 'Demo Login' })).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole('tab', { name: 'Demo Login' })).not.toBeInTheDocument());
       expect(screen.getByLabelText('Email')).toBeInTheDocument();
     });
 
@@ -151,6 +151,115 @@ describe('LoginPage', () => {
     });
   });
 
+  describe('while the first demo-accounts answer is still pending (sleeping server)', () => {
+    const pending = () => {
+      let resolve;
+      let reject;
+      const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+      authApi.demoAccounts.mockReturnValue(promise);
+      return { resolve, reject };
+    };
+
+    it('shows the Demo Login tab at once, with a waiting message and the normal form still usable', async () => {
+      pending();
+      renderRoute(<LoginPage />, { path: '/login' });
+
+      const tab = screen.getByRole('tab', { name: 'Demo Login' });
+      expect(screen.getByLabelText('Email')).toBeInTheDocument();
+      await userEvent.click(tab);
+      expect(screen.getByText(/Checking the demo accounts/)).toBeInTheDocument();
+      expect(screen.queryByLabelText('Reviewer access code')).not.toBeInTheDocument();
+    });
+
+    it('turns into the account cards when the answer arrives', async () => {
+      const { resolve } = pending();
+      renderRoute(<LoginPage />, { path: '/login' });
+      await userEvent.click(screen.getByRole('tab', { name: 'Demo Login' }));
+
+      resolve(DEMO_ACCOUNTS);
+
+      expect(await screen.findByRole('button', { name: 'Continue as GrandVista Manager' })).toBeInTheDocument();
+      expect(screen.queryByText(/Checking the demo accounts/)).not.toBeInTheDocument();
+    });
+
+    it('turns into the access-code gate on 401', async () => {
+      const { reject } = pending();
+      renderRoute(<LoginPage />, { path: '/login' });
+      await userEvent.click(screen.getByRole('tab', { name: 'Demo Login' }));
+
+      reject(new ApiError(401, 'Reviewer access code required'));
+
+      expect(await screen.findByLabelText('Reviewer access code')).toBeInTheDocument();
+    });
+
+    it('turns into the retry panel on 503', async () => {
+      const { reject } = pending();
+      renderRoute(<LoginPage />, { path: '/login' });
+      await userEvent.click(screen.getByRole('tab', { name: 'Demo Login' }));
+
+      reject(new ApiError(503, 'Service Unavailable'));
+
+      expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    });
+
+    it('turns into the access-code gate on 429 too', async () => {
+      const { reject } = pending();
+      renderRoute(<LoginPage />, { path: '/login' });
+      await userEvent.click(screen.getByRole('tab', { name: 'Demo Login' }));
+
+      reject(new ApiError(429, 'Too many requests'));
+
+      expect(await screen.findByLabelText('Reviewer access code')).toBeInTheDocument();
+    });
+
+    it('a retry that is pending and then answered 401 ends at the access-code gate', async () => {
+      authApi.demoAccounts.mockRejectedValueOnce(new ApiError(503, 'Service Unavailable'));
+      renderRoute(<LoginPage />, { path: '/login' });
+      await userEvent.click(await screen.findByRole('tab', { name: 'Demo Login' }));
+      const { reject } = pending();
+      await userEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+      expect(screen.getByText(/Checking the demo accounts/)).toBeInTheDocument();
+
+      reject(new ApiError(401, 'Reviewer access code required'));
+
+      expect(await screen.findByLabelText('Reviewer access code')).toBeInTheDocument();
+      expect(screen.queryByText(/Checking the demo accounts/)).not.toBeInTheDocument();
+    });
+
+    it('removes the tab and shows the normal form when demo mode is disabled (403)', async () => {
+      const { reject } = pending();
+      renderRoute(<LoginPage />, { path: '/login' });
+      await userEvent.click(screen.getByRole('tab', { name: 'Demo Login' }));
+
+      reject(new ApiError(403, 'Demo login is disabled on this server'));
+
+      await waitFor(() => expect(screen.queryByRole('tab', { name: 'Demo Login' })).not.toBeInTheDocument());
+      expect(screen.getByLabelText('Email')).toBeInTheDocument();
+    });
+
+    it('Try again shows the waiting message again while the new request is pending', async () => {
+      authApi.demoAccounts.mockRejectedValueOnce(new ApiError(503, 'Service Unavailable'));
+      renderRoute(<LoginPage />, { path: '/login' });
+      await userEvent.click(await screen.findByRole('tab', { name: 'Demo Login' }));
+      pending();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+
+      expect(screen.getByText(/Checking the demo accounts/)).toBeInTheDocument();
+    });
+
+    it('ignores the answer after the page is closed', async () => {
+      const { resolve } = pending();
+      const { unmount } = renderRoute(<LoginPage />, { path: '/login' });
+      unmount();
+
+      resolve(DEMO_ACCOUNTS);
+      await Promise.resolve();
+
+      expect(authApi.demoAccounts).toHaveBeenCalledTimes(1);   // nothing re-fires, no error from a stale update
+    });
+  });
+
   describe('demo login on a public deployment (reviewer access code)', () => {
     const codeRequired = () => Promise.reject(new ApiError(401, 'Reviewer access code required'));
 
@@ -205,7 +314,7 @@ describe('LoginPage', () => {
       renderRoute(<LoginPage />, { path: '/login' });
 
       await userEvent.click(await screen.findByRole('tab', { name: 'Demo Login' }));
-      expect(screen.getByText(/may still be waking up/)).toBeInTheDocument();
+      expect(await screen.findByText(/may still be waking up/)).toBeInTheDocument();
       expect(screen.queryByLabelText('Reviewer access code')).not.toBeInTheDocument();
 
       await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
