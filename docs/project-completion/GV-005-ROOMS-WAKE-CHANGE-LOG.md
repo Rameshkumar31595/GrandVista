@@ -1,6 +1,6 @@
 # GV-005 - Rooms 503 when a free-tier service is asleep
 
-Status: approved by the user 2026-10-29 17:51 IST for publish and deploy of gateway and web; rebased on main 64affcc. Deployment and live checks are recorded in a follow-up docs-only entry.
+Status: merged as PR #6 (main 3638fd5) and deployed to web and gateway. The automatic wake of sleeping services is NOT proven to work live; see "Live result".
 
 ## Observed (live, read-only, 2026-10-29 16:34-16:39 IST)
 - Rooms page: GET /api/rooms and /api/hotels returned 503 in ~0.34s.
@@ -24,3 +24,11 @@ Status: approved by the user 2026-10-29 17:51 IST for publish and deploy of gate
 
 ## Revert
 `git apply -R GV-005-rooms-wake.patch` (code, tests, this file) or revert the commit. A live revert needs a redeploy of gateway and web.
+
+## Live result (2026-10-29, after deploy of 3638fd5)
+- Deploy: web and gateway both built from 3638fd5 (manual "Deploy latest commit"; Render did not auto-deploy).
+- Observed: with Room, Booking and Payment asleep, a Rooms request made the gateway log "No service instance available ... sending health pings". Each ping to Payment, Booking and Room logged "not answering yet (BadGateway)" (an HTTP 502 from the hosting edge, received in under a second).
+- None of those services started in the next 5 to 8 minutes. A direct GET to each service's public health URL started each one within about 20 seconds (Room, Payment, Booking boots followed those GETs). After Room registered, /api/rooms returned 200.
+- Conclusion: the trigger runs, but the pings did not wake the services in this test. Cause unknown (the 502 body was not logged). Not shown: the request shape, the in-region route or edge behaviour as the cause. Do not rely on this change to wake services until a later test shows a service starting from a gateway ping.
+- Still valid: Rooms page bounded retry (unit tests); Eureka, Auth, Room, Booking, Payment cold starts remain (measured: Eureka ~75 s, Room ~100 s).
+- Revert: revert PR #6 (3638fd5) and redeploy web and gateway; no env, DB or settings were changed.
