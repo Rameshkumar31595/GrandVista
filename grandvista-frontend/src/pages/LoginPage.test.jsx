@@ -31,7 +31,8 @@ describe('LoginPage', () => {
     login.mockReset();
     demoLogin.mockReset();
     authApi.demoAccounts.mockReset();
-    authApi.demoAccounts.mockRejectedValue(new Error('Demo login is disabled on this server'));
+    // the real server answers 403 when DEMO_MODE_ENABLED=false (GlobalExceptionHandler)
+    authApi.demoAccounts.mockRejectedValue(new ApiError(403, 'Demo login is disabled on this server'));
     useAuth.mockReturnValue({ login, demoLogin, notice: null, clearNotice });
   });
 
@@ -196,6 +197,21 @@ describe('LoginPage', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent('That reviewer access code was not accepted.');
       expect(screen.queryByRole('button', { name: 'Continue as Ramesh' })).not.toBeInTheDocument();
       expect(sessionStorage.getItem('grandvista.demoAccessCode')).toBeNull();
+    });
+
+    it('keeps the Demo Login tab with a retry option when the server is temporarily unavailable', async () => {
+      authApi.demoAccounts.mockRejectedValueOnce(new ApiError(503, 'Service Unavailable'))
+        .mockResolvedValue(DEMO_ACCOUNTS);
+      renderRoute(<LoginPage />, { path: '/login' });
+
+      await userEvent.click(await screen.findByRole('tab', { name: 'Demo Login' }));
+      expect(screen.getByText(/may still be waking up/)).toBeInTheDocument();
+      expect(screen.queryByLabelText('Reviewer access code')).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+      expect(await screen.findByRole('button', { name: 'Continue as GrandVista Manager' })).toBeInTheDocument();
+      expect(authApi.demoAccounts).toHaveBeenCalledTimes(2);
     });
 
     it('shows the rate-limit message from the server', async () => {

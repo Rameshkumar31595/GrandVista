@@ -17,33 +17,39 @@ export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  // Demo accounts exist only when the server was started with DEMO_MODE_ENABLED=true; any failure hides the tab,
-  // except 401/429 = "this server wants a reviewer access code first" (public deployments).
+  // Demo accounts exist only when the server was started with DEMO_MODE_ENABLED=true.
+  // 403 = demo mode disabled on this server, so the tab stays hidden; 401/429 = "this server wants
+  // a reviewer access code first" (public deployments); anything else (502/503/network while a
+  // free-tier service wakes up) is transient - keep the tab and offer a retry instead of hiding it.
   const [demoAccounts, setDemoAccounts] = useState([]);
   const [demoLocked, setDemoLocked] = useState(false);
+  const [demoError, setDemoError] = useState(false);
   const [accessCode, setAccessCode] = useState('');
   const [codeInput, setCodeInput] = useState('');
   const [mode, setMode] = useState('normal');
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadDemoAccounts = () => {
+    setDemoError(false);
     const code = storedCode();
-    (code ? authApi.demoAccounts(code) : authApi.demoAccounts())
+    return (code ? authApi.demoAccounts(code) : authApi.demoAccounts())
       .then((accounts) => {
-        if (!cancelled && Array.isArray(accounts)) {
+        if (Array.isArray(accounts)) {
           setDemoAccounts(accounts);
           setAccessCode(code);
+          setDemoLocked(false);
         }
       })
       .catch((err) => {
-        if (cancelled) return;
         if (err?.status === 401 || err?.status === 429) {
           forgetCode();
           setDemoLocked(true);
+        } else if (err?.status !== 403) {
+          setDemoError(true);
         }
       });
-    return () => { cancelled = true; };
-  }, []);
+  };
+
+  useEffect(() => { loadDemoAccounts(); }, []);
 
   const unlockDemo = async (event) => {
     event.preventDefault();
@@ -101,7 +107,7 @@ export default function LoginPage() {
     }
   };
 
-  const showDemo = demoAccounts.length > 0 || demoLocked;
+  const showDemo = demoAccounts.length > 0 || demoLocked || demoError;
 
   return (
     <div className="auth-page">
@@ -125,7 +131,16 @@ export default function LoginPage() {
           </div>
         )}
 
-        {mode === 'demo' && showDemo && demoAccounts.length === 0 ? (
+        {mode === 'demo' && showDemo && demoAccounts.length === 0 && demoError && !demoLocked ? (
+          <div className="demo-panel" role="tabpanel">
+            <p className="small muted">
+              Demo accounts cannot be reached right now - the server may still be waking up. Try again in a moment.
+            </p>
+            <button type="button" className="btn btn-primary btn-block" onClick={loadDemoAccounts}>
+              Try again
+            </button>
+          </div>
+        ) : mode === 'demo' && showDemo && demoAccounts.length === 0 ? (
           <form className="auth-form demo-panel" role="tabpanel" onSubmit={unlockDemo}>
             <p className="small muted">
               This is a public deployment: enter the reviewer access code you were given to unlock the demo accounts.

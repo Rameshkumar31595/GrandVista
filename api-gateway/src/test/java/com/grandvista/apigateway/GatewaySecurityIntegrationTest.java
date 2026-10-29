@@ -29,7 +29,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "eureka.client.enabled=false",
         "grandvista.jwt.secret=" + GatewaySecurityIntegrationTest.SECRET,
-        "grandvista.cors.allowed-origins=http://localhost:5173"
+        "grandvista.cors.allowed-origins=http://localhost:5173",
+        // keep no-instance 503s fast in tests: shrink the GV-002 auth-route retry backoff
+        "grandvista.auth-retry.first-backoff=10ms",
+        "grandvista.auth-retry.max-backoff=10ms",
+        "grandvista.auth-retry.factor=1"
 })
 class GatewaySecurityIntegrationTest {
 
