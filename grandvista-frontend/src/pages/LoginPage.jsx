@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { authApi } from '../api/endpoints';
 import { Alert } from '../components/common';
@@ -24,15 +24,21 @@ export default function LoginPage() {
   const [demoAccounts, setDemoAccounts] = useState([]);
   const [demoLocked, setDemoLocked] = useState(false);
   const [demoError, setDemoError] = useState(false);
+  // true from the first render until the first answer: on a sleeping free-tier server that answer can take a minute
+  // (the gateway retries for ~55s), and the tab must not be missing meanwhile.
+  const [demoLoading, setDemoLoading] = useState(true);
+  const mounted = useRef(true);
   const [accessCode, setAccessCode] = useState('');
   const [codeInput, setCodeInput] = useState('');
   const [mode, setMode] = useState('normal');
 
   const loadDemoAccounts = () => {
     setDemoError(false);
+    setDemoLoading(true);
     const code = storedCode();
     return (code ? authApi.demoAccounts(code) : authApi.demoAccounts())
       .then((accounts) => {
+        if (!mounted.current) return;
         if (Array.isArray(accounts)) {
           setDemoAccounts(accounts);
           setAccessCode(code);
@@ -40,16 +46,22 @@ export default function LoginPage() {
         }
       })
       .catch((err) => {
+        if (!mounted.current) return;
         if (err?.status === 401 || err?.status === 429) {
           forgetCode();
           setDemoLocked(true);
         } else if (err?.status !== 403) {
           setDemoError(true);
         }
-      });
+      })
+      .finally(() => { if (mounted.current) setDemoLoading(false); });
   };
 
-  useEffect(() => { loadDemoAccounts(); }, []);
+  useEffect(() => {
+    mounted.current = true;
+    loadDemoAccounts();
+    return () => { mounted.current = false; };
+  }, []);
 
   const unlockDemo = async (event) => {
     event.preventDefault();
@@ -107,7 +119,7 @@ export default function LoginPage() {
     }
   };
 
-  const showDemo = demoAccounts.length > 0 || demoLocked || demoError;
+  const showDemo = demoAccounts.length > 0 || demoLocked || demoError || demoLoading;
 
   return (
     <div className="auth-page">
@@ -131,7 +143,13 @@ export default function LoginPage() {
           </div>
         )}
 
-        {mode === 'demo' && showDemo && demoAccounts.length === 0 && demoError && !demoLocked ? (
+        {mode === 'demo' && demoLoading && demoAccounts.length === 0 && !demoLocked && !demoError ? (
+          <div className="demo-panel" role="tabpanel">
+            <p className="small muted" role="status">
+              Checking the demo accounts - the server may be waking up. This can take a while, please wait.
+            </p>
+          </div>
+        ) : mode === 'demo' && showDemo && demoAccounts.length === 0 && demoError && !demoLocked ? (
           <div className="demo-panel" role="tabpanel">
             <p className="small muted">
               Demo accounts cannot be reached right now - the server may still be waking up. Try again in a moment.
