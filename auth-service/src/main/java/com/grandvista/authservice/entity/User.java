@@ -42,6 +42,15 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /**
+     * Soft-delete marker, set when an administrator deletes the account. The row is deliberately
+     * kept: bookings and payments in the other services reference this user id, so a hard delete
+     * would orphan their historical records. Deleted accounts cannot log in and are hidden from
+     * the admin user list.
+     */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     protected User() {
         // required by JPA
     }
@@ -82,6 +91,26 @@ public class User {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
+    public void softDelete() {
+        this.deletedAt = Instant.now();
     }
 
     public Role getRole() {
