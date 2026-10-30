@@ -223,9 +223,9 @@ services:
       - fromGroup: grandvista-shared
       - key: EUREKA_PUBLIC_URL
         fromService: { type: web, name: grandvista-eureka, envVarKey: RENDER_EXTERNAL_URL }
-      # the only browser origin allowed by CORS: the static frontend below
+      # browser origins allowed by CORS: the static frontend, plus the owner's Chrome REST Client extension (approved)
       - key: CORS_ALLOWED_ORIGINS
-        fromService: { type: web, name: grandvista-web, envVarKey: RENDER_EXTERNAL_URL }
+        value: "https://grandvista-web.onrender.com,chrome-extension://oienkoejnhkbcibhdnpjoemdnmiokgah"
       # keep-warm targets (pinged only while users are active, see KeepWarmService)
       - key: AUTH_PUBLIC_URL
         fromService: { type: web, name: grandvista-auth, envVarKey: RENDER_EXTERNAL_URL }
