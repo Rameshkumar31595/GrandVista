@@ -93,4 +93,15 @@ class AuthServiceImplTest {
         assertThat(response.tokenType()).isEqualTo("Bearer");
         assertThat(response.expiresAt()).isEqualTo(expiry);
     }
+
+    @Test
+    void loginRefusesSoftDeletedAccount() {
+        User deleted = new User("Asha", "asha@example.com", "hash", Role.ROLE_USER);
+        deleted.softDelete();
+        when(userRepository.findByEmail("asha@example.com")).thenReturn(java.util.Optional.of(deleted));
+
+        assertThatThrownBy(() -> authService.login(new LoginRequest("asha@example.com", "Secret123")))
+                .isInstanceOf(InvalidCredentialsException.class);
+        verify(tokenProvider, never()).issueToken(any(User.class));
+    }
 }
