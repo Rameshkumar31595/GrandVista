@@ -75,6 +75,10 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidCredentialsException();
         }
         User user = userRepository.findByEmail(email).orElseThrow(InvalidCredentialsException::new);
+        if (user.isDeleted()) {
+            log.info("Login attempt for deleted account email={}", email);
+            throw new InvalidCredentialsException();
+        }
         JwtTokenProvider.IssuedToken token = tokenProvider.issueToken(user);
         log.info("User id={} logged in with role {}", user.getId(), user.getRole());
         return new AuthResponse(token.value(), "Bearer", token.expiresAt(), UserResponse.from(user));
