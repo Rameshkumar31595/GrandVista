@@ -13,4 +13,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
 
     boolean existsByRole(Role role);
+
+    /** Active (not soft-deleted) administrators, for the last-admin guard on delete. */
+    long countByRoleAndDeletedAtIsNull(Role role);
+
+    /** Admin list: soft-deleted accounts are hidden. */
+    java.util.List<User> findAllByDeletedAtIsNull(org.springframework.data.domain.Sort sort);
 }
